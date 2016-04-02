@@ -5,6 +5,7 @@ from html.parser import HTMLParser
 
 """ Basic indexer of HTML pages """
 class Indexer:
+
     stopwords = set([''])
 
     def __init__(self, stopword_file):
@@ -12,8 +13,6 @@ class Indexer:
         with open(stopword_file, 'r', encoding='utf-8') as f:
             for word in f.readlines():
                 self.stopwords.add(word.strip())
-
-        ### PLACE HERE! - request all articles from content service at startup ###
 
     def make_index(self, url):
         # Retriving the HTML source from the url
@@ -29,17 +28,17 @@ class Indexer:
         # Removing stopwords
         unique_words = set(content).difference(self.stopwords)
 
-        # Making the index
-        word_freq = []
+        # Making a list of tuples: (url, word, wordfreq)
+        values = []
         for word in unique_words:
-            word_freq.append((word, content.count(word)))
+            values.append((url, word, content.count(word)))
 
-        for t in word_freq:
-            print(t)
+        return values
 
 
 """Basic parser for parsing of html data"""
 class Parser(HTMLParser):
+	
     content = []
     tags_to_ignore = set(["script"]) # Add HTML tags to the set to ignore the data from that tag
     ignore_tag = False
