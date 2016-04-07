@@ -1,23 +1,30 @@
 # -*- coding: utf-8 -*-
-import urllib.request
-from html.parser import HTMLParser
+import urllib2
+from HTMLParser import HTMLParser
+
 
 
 """ Basic indexer of HTML pages """
 class Indexer:
 
-    stopwords = set([''])
+    stopwords = None
+    index = None
 
-    def __init__(self, stopword_file):
+    def __init__(self, index, stopword_file_path):
+        self.index = index
+        self.stopwords = set([''])
+
         # Reading in the stopword file
-        with open(stopword_file, 'r', encoding='utf-8') as f:
+        with open(stopword_file_path, 'r') as f:
             for word in f.readlines():
                 self.stopwords.add(word.strip())
 
     def make_index(self, url):
         # Retriving the HTML source from the url
-        with urllib.request.urlopen(url) as html:
-            page = str(html.read().decode('utf-8'))
+        req = urllib2.Request(url)
+        response = urllib2.urlopen(req)
+        page = str(response.read()) #.decode('utf-8'))
+        response.close()
 
         # Parse the HTML
         parser = Parser()
@@ -34,6 +41,13 @@ class Indexer:
             values.append((url, word, content.count(word)))
 
         return values
+
+    def initialize_database(self):
+        self.index.make_tables()
+
+    def index_page(self, url):
+        self.index.insert(self.make_index(url))
+
 
 
 """Basic parser for parsing of html data"""
