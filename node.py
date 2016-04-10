@@ -35,7 +35,6 @@ class Node(EntangledNode):
         if self.logger:
             logger.info('Node created!')
 
-
     def handle_error(self, failure):
         if self.logger:
             self.logger.error('An error has occurred:', failure.getErrorMessage())

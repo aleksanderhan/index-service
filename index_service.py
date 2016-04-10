@@ -11,7 +11,6 @@ import urllib2
 import json
 
 
-
 """ Index microservice class """
 class IndexService(resource.Resource):
     isLeaf = True
@@ -25,6 +24,7 @@ class IndexService(resource.Resource):
 
     # Asks the user for some questions at startup.
     def startup_routine(self):
+        indexContent = False
         while True:
             print("Options:")
             print("1. Initialize database")
@@ -35,8 +35,10 @@ class IndexService(resource.Resource):
             if user_input == '1':
                 self.initialize_database()   
             elif user_input == '2':
-                self.index_content()
+                indexContent = True
             elif user_input == '3':
+                if indexContent:
+                    self.index_content()
                 print("Starting index service. Use Ctrl + c to quit.")
                 break
             else:
@@ -65,67 +67,65 @@ class IndexService(resource.Resource):
         # **** TODO: dont index already indexed articles ****
         host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
         urls = self.get_all_articles(host)
-        print(urls)
-        #for url in urls:
+        print(type(urls))
+        #for url in urls['list']:
         #    self.index_page(url)
+        print("done")
 
     # Asks content service for urls to all articles. Returns list of the urls.
     def get_all_articles(self, host):
         agent = Agent(reactor) 
         d = agent.request("GET", host+"/list")
-        d.addCallback(self.cbRequest)
-
-    def cbRequest(self, response):
-        finished = Deferred()
-        response.deliverBody(RequestClient(finished))
-        return finished
+        def cbRequest(response):
+            finished = Deferred()
+            response.deliverBody(RequestClient(finished))
+            return finished
+        d.addCallback(cbRequest)
 
     # Indexes page at url.
     def index_page(self, url):
         page = self.make_index(url)
         self.index.insert(page)
 
-    # Handles POST requests
+    # Handles POST requests from the Search microservice
     def render_POST(self, request):
         d = json.load(request.content)
-        if d['Partial'] == "True":
-            return "not implemented yet"
-        if d['Partial'] == "False":
+        response = None
+        if d['Partial'] == True:
+            print(True)
+            word_root = d['Query']
+            data = self.index.query("SELECT * wordfreq WHERE word LIKE '%s%'", word_root)
+            print(data)
+            return data
+        if d['Partial'] == False:
+            print(False)
             word = d['Query']
-            print('ayy')
             data = self.index.query("SELECT * FROM wordfreq WHERE word=(%s)", word)
             print(data)
+            return data
         else:
             print("you got mail")
-            return('result')
-
+            return('404')
 
 
 """ Request Client """
 class RequestClient(protocol.Protocol):
     def __init__(self, finished):
         self.finished = finished
-        #self.remaining = 1024 * 10
-        self.data = ""
 
+    # Handles data received from GET response
     def dataReceived(self, bytes):
-        if self.remaining:
-            display = bytes[:self.remaining]
-            self.data += display
-            self.remaining -= len(display)
-        print(self.data)
+        data = bytes[:]
+        print(data)
 
-    def connectionMade(self):
-        pass
-        #self.transport.write(self.factory.requestquery)
-        ##self.finished.callback(self.data)
-        #self.transport.loseConnection()
 
-    def connectionLost(self, reason):
-        self.finished.callback(self.data)
+
+    # 
+    #def connectionMade(self):
+        #return self.data
+        #self.finished.callback(self.data)
+
    
-
-
 """ Basic indexer of HTML pages """
 class Indexer:
     stopwords = None
@@ -161,7 +161,6 @@ class Indexer:
             values.append((url, word, content.count(word)))
 
         return values
-
 
 
 """ Basic parser for parsing of html data """
