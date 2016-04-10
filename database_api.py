@@ -4,8 +4,6 @@ import psycopg2
 
 """ PostgresSQL database API """
 class DatabaseAPI:
-
-    conn_string = None 
     conn, cursor = None, None
 
     def __init__(self, host, port, dbname, user, password):

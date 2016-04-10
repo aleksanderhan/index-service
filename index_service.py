@@ -2,18 +2,19 @@
 from __future__ import print_function
 from HTMLParser import HTMLParser
 from twisted.web import server, resource
-from twisted.internet import reactor
+from twisted.web.client import Agent, FileBodyProducer
+from twisted.internet.defer import Deferred
+from twisted.internet import reactor, protocol
 from database_api import DatabaseAPI
+from StringIO import StringIO
 import urllib2
 import json
 
 
 
+""" Index microservice class """
 class IndexService(resource.Resource):
-
     isLeaf = True
-    index = None
-    indexer = None
 
     def __init__(self, host, port, dbname, user, password, stopword_file_path):
         self.index = DatabaseAPI(host, port, dbname, user, password)
@@ -21,20 +22,6 @@ class IndexService(resource.Resource):
         self.startup_routine()
         reactor.listenTCP(8001, server.Site(self))
         reactor.run()
-
-    # Handles POST requests
-    def render_POST(self, request):
-        d = json.load(request.content)
-        if d['Partial'] == "True":
-            return "not implemented yet"
-        if d['Partial'] == "False":
-            word = d['Query']
-            print('ayy')
-            data = index.query("SELECT * FROM wordfreq WHERE word=(%s)", (word))
-            print(data)
-        else:
-            print("you got mail")
-            return('result')
 
     # Asks the user for some questions at startup.
     def startup_routine(self):
@@ -50,26 +37,11 @@ class IndexService(resource.Resource):
             elif user_input == '2':
                 self.index_content()
             elif user_input == '3':
-                print("Start index service. Use Ctrl + c to quit.")
+                print("Starting index service. Use Ctrl + c to quit.")
                 break
             else:
                 print("Option has to be a number between 1 and 3")
                 continue
-
-    # Indexes all articles from the content microservice.
-    def index_content(self):
-        urls = self.get_all_articles()
-        for url in urls:
-            self.index_page(url)
-
-    # Asks content service for all articles. Returns list of urls to articles.
-    def get_all_articles(self):
-        pass
-
-    # Indexes page at url.
-    def index_page(self, url):
-        page = self.make_index(url)
-        self.index.insert(page)
 
     # Creates new clean tables in the database
     def initialize_database(self):
@@ -88,7 +60,72 @@ class IndexService(resource.Resource):
             else:
                 continue
 
+    # Indexes all articles from the content microservice.
+    def index_content(self):
+        # **** TODO: dont index already indexed articles ****
+        host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
+        urls = self.get_all_articles(host)
+        print(urls)
+        #for url in urls:
+        #    self.index_page(url)
+
+    # Asks content service for urls to all articles. Returns list of the urls.
+    def get_all_articles(self, host):
+        request = json.dumps({"Request" : "get all articles"})  
+        agent = Agent(reactor) 
+        d = agent.request("POST", host, None, FileBodyProducer(StringIO(request)))
+        d.addCallback(self.cbRequest)
+        #d.addBoth(self.cbShutdown)
+        #reactor.run()
+        
+    def cbRequest(self, response):
+        finished = Deferred()
+        response.deliverBody(BeginningPrinter(finished))
+        return finished   
+
+    # Indexes page at url.
+    def index_page(self, url):
+        page = self.make_index(url)
+        self.index.insert(page)
+
+    # Handles POST requests
+    def render_POST(self, request):
+        d = json.load(request.content)
+        if d['Partial'] == "True":
+            return "not implemented yet"
+        if d['Partial'] == "False":
+            word = d['Query']
+            print('ayy')
+            data = index.query("SELECT * FROM wordfreq WHERE word=(%s)", (word))
+            print(data)
+        else:
+            print("you got mail")
+            return('result')
+
+
+
+""" Request Client """
+class RequestClient(protocol.Protocol):
+    def __init__(self, finished):
+        self.finished = finished
+        self.remaining = 1024 * 10
+        self.data = ""
+
+    def dataReceived(self, bytes):
+        if self.remaining:
+            display = bytes[:self.remaining]
+            self.data += display
+            self.remaining -= len(display)
+
+    def connectionMade(self):
+        self.transport.write(self.factory.requestquery)
+        self.transport.loseConnection()
+
+    def connectionLost(self, reason):
+        print('Finished receiving body:', reason.getErrorMessage())
+        self.finished.callback(None)
     
+
 
 """ Basic indexer of HTML pages """
 class Indexer:
@@ -129,7 +166,7 @@ class Indexer:
 
 
 
-"""Basic parser for parsing of html data"""
+""" Basic parser for parsing of html data """
 class Parser(HTMLParser):
 	
     content = []
