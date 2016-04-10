@@ -36,6 +36,7 @@ class IndexService(resource.Resource):
             print("you got mail")
             return('result')
 
+    # Asks the user for some questions at startup.
     def startup_routine(self):
         while True:
             print("Options:")
@@ -45,28 +46,30 @@ class IndexService(resource.Resource):
             print(">> ", end="")
             user_input = str(raw_input())
             if user_input == '1':
-                print("initialize")
                 self.initialize_database()   
             elif user_input == '2':
-                print("index articles")
                 self.index_content()
             elif user_input == '3':
-                print("start")
+                print("Start index service. Use Ctrl + c to quit.")
                 break
             else:
                 print("Option has to be a number between 1 and 3")
                 continue
 
+    # Indexes all articles from the content microservice.
     def index_content(self):
-        content = self.get_all_articles()
-
+        urls = self.get_all_articles()
+        for url in urls:
+            self.index_page(url)
 
     # Asks content service for all articles. Returns list of urls to articles.
     def get_all_articles(self):
         pass
 
+    # Indexes page at url.
     def index_page(self, url):
-        self.index.insert(self.make_index(url))
+        page = self.make_index(url)
+        self.index.insert(page)
 
     # Creates new clean tables in the database
     def initialize_database(self):
@@ -95,29 +98,29 @@ class Indexer:
     def __init__(self, stopword_file_path):
         self.stopwords = set([''])
 
-        # Reading in the stopword file
+        # Reading in the stopword file:
         with open(stopword_file_path, 'r') as f:
             for word in f.readlines():
                 self.stopwords.add(word.strip())
 
     # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
     def make_index(self, url):
-        # Retriving the HTML source from the url
+        # Retriving the HTML source from the url:
         req = urllib2.Request(url)
         response = urllib2.urlopen(req)
         page = str(response.read()) #.decode('utf-8'))
         response.close()
 
-        # Parse the HTML
+        # Parseing the HTML:
         parser = Parser()
         parser.feed(page)
         content = parser.get_content()
         parser.close()
 
-        # Removing stopwords
+        # Removing stopwords:
         unique_words = set(content).difference(self.stopwords)
 
-        # Making a list of tuples: (url, word, wordfreq)
+        # Making a list of tuples: (url, word, wordfreq):
         values = []
         for word in unique_words:
             values.append((url, word, content.count(word)))
@@ -133,12 +136,14 @@ class Parser(HTMLParser):
     tags_to_ignore = set(["script"]) # Add HTML tags to the set to ignore the data from that tag.
     ignore_tag = False
 
+    # Keeps track of which tags to ignore data from.
     def handle_starttag(self, tag, attrs):
         if tag in self.tags_to_ignore:
             self.ignore_tag = True
         else:
             self.ignore_tag = False
-        
+      
+    # Handles data from tags.  
     def handle_data(self, data):
         if data.strip() == "" or self.ignore_tag:
             return
@@ -148,6 +153,7 @@ class Parser(HTMLParser):
                 continue
             self.content.append(word.lower().strip("'.,;:/&()=?!`´´}][{-_"))
 
+    # Get method for content.
     def get_content(self):
         return self.content
 
