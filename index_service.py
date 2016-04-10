@@ -71,17 +71,14 @@ class IndexService(resource.Resource):
 
     # Asks content service for urls to all articles. Returns list of the urls.
     def get_all_articles(self, host):
-        request = json.dumps({"Request" : "get all articles"})  
         agent = Agent(reactor) 
-        d = agent.request("POST", host, None, FileBodyProducer(StringIO(request)))
+        d = agent.request("GET", host+"/list")
         d.addCallback(self.cbRequest)
-        #d.addBoth(self.cbShutdown)
-        #reactor.run()
-        
+
     def cbRequest(self, response):
         finished = Deferred()
-        response.deliverBody(BeginningPrinter(finished))
-        return finished   
+        response.deliverBody(RequestClient(finished))
+        return finished
 
     # Indexes page at url.
     def index_page(self, url):
@@ -96,7 +93,7 @@ class IndexService(resource.Resource):
         if d['Partial'] == "False":
             word = d['Query']
             print('ayy')
-            data = index.query("SELECT * FROM wordfreq WHERE word=(%s)", (word))
+            data = self.index.query("SELECT * FROM wordfreq WHERE word=(%s)", word)
             print(data)
         else:
             print("you got mail")
@@ -108,7 +105,7 @@ class IndexService(resource.Resource):
 class RequestClient(protocol.Protocol):
     def __init__(self, finished):
         self.finished = finished
-        self.remaining = 1024 * 10
+        #self.remaining = 1024 * 10
         self.data = ""
 
     def dataReceived(self, bytes):
@@ -116,20 +113,21 @@ class RequestClient(protocol.Protocol):
             display = bytes[:self.remaining]
             self.data += display
             self.remaining -= len(display)
+        print(self.data)
 
     def connectionMade(self):
-        self.transport.write(self.factory.requestquery)
-        self.transport.loseConnection()
+        pass
+        #self.transport.write(self.factory.requestquery)
+        ##self.finished.callback(self.data)
+        #self.transport.loseConnection()
 
     def connectionLost(self, reason):
-        print('Finished receiving body:', reason.getErrorMessage())
-        self.finished.callback(None)
-    
+        self.finished.callback(self.data)
+   
 
 
 """ Basic indexer of HTML pages """
 class Indexer:
-
     stopwords = None
 
     def __init__(self, stopword_file_path):
@@ -167,8 +165,7 @@ class Indexer:
 
 
 """ Basic parser for parsing of html data """
-class Parser(HTMLParser):
-	
+class Parser(HTMLParser):	
     content = []
     tags_to_ignore = set(["script"]) # Add HTML tags to the set to ignore the data from that tag.
     ignore_tag = False
