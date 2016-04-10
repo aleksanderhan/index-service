@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-import urllib2
+from __future__ import print_function
 from HTMLParser import HTMLParser
 from twisted.web import server, resource
 from twisted.internet import reactor
 from database_api import DatabaseAPI
+import urllib2
 import json
 
 
@@ -18,7 +19,6 @@ class IndexService(resource.Resource):
         self.index = DatabaseAPI(host, port, dbname, user, password)
         self.indexer = Indexer(stopword_file_path)
         self.startup_routine()
-        
         reactor.listenTCP(8001, server.Site(self))
         reactor.run()
 
@@ -29,44 +29,63 @@ class IndexService(resource.Resource):
             return "not implemented yet"
         if d['Partial'] == "False":
             word = d['Query']
-            print 'ayy'
+            print('ayy')
             data = index.query("SELECT * FROM wordfreq WHERE word=(%s)", (word))
-            print data
+            print(data)
         else:
-            print "you got mail"
-            return 'result'
+            print("you got mail")
+            return('result')
 
     def startup_routine(self):
-        user_input = None
-        while user_input != 3:
+        while True:
             print("Options:")
             print("1. Initialize database")
             print("2. Index all articles from content")
             print("3. Start service")
-            print(">> ")
-            try:
-                user_input = int(input())
-                if user_input == 1:
-                    pass
-                if user_input == 2:
-                    pass
-                if user_input == 3:
-                    break
-            except:
+            print(">> ", end="")
+            user_input = str(raw_input())
+            if user_input == '1':
+                print("initialize")
+                self.initialize_database()   
+            elif user_input == '2':
+                print("index articles")
+                self.index_content()
+            elif user_input == '3':
+                print("start")
+                break
+            else:
                 print("Option has to be a number between 1 and 3")
                 continue
 
-    # Asks content service for all articles. Returns list of urls to articles.
-    def get_all_articles():
-        pass
+    def index_content(self):
+        content = self.get_all_articles()
 
-    def initialize_database(self):
-        self.index.make_tables()
+
+    # Asks content service for all articles. Returns list of urls to articles.
+    def get_all_articles(self):
+        pass
 
     def index_page(self, url):
         self.index.insert(self.make_index(url))
 
+    # Creates new clean tables in the database
+    def initialize_database(self):
+        yes = set(['Y', 'y', 'Yes', 'yes', 'YES'])
+        no = set(['N', 'n', 'No', 'no', 'NO'])
+        while True:
+            print("This will delete any existing data and reset the database.")
+            print("Are you sure you want to continue? [Y]es/[N]o")
+            print(">> ", end="")
+            user_input = str(raw_input())
+            if user_input in yes:
+                self.index.make_tables()
+                break
+            elif user_input in no:
+                break
+            else:
+                continue
 
+    
 
 """ Basic indexer of HTML pages """
 class Indexer:
@@ -81,6 +100,7 @@ class Indexer:
             for word in f.readlines():
                 self.stopwords.add(word.strip())
 
+    # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
     def make_index(self, url):
         # Retriving the HTML source from the url
         req = urllib2.Request(url)
@@ -110,7 +130,7 @@ class Indexer:
 class Parser(HTMLParser):
 	
     content = []
-    tags_to_ignore = set(["script"]) # Add HTML tags to the set to ignore the data from that tag
+    tags_to_ignore = set(["script"]) # Add HTML tags to the set to ignore the data from that tag.
     ignore_tag = False
 
     def handle_starttag(self, tag, attrs):
