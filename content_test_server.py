@@ -15,6 +15,7 @@ reactor.listenTCP(8002, server.Site(ContentTestServer()))
 reactor.run()
 
 '''
-curl -i -H "Content-Type: application/json" -X POST -d '{"Partial" : "False", "Query" : "ta"}' 127.0.0.1:8001
-curl -i -H "Content-Type: application/json" -X POST -d '{"Partial" : "True", "Query" : "ta"}' 127.0.0.1:8001
+curl -i -H "Content-Type: application/json" -X POST -d '{"task" : "getSuggestions", "word" : "ta"}' 127.0.0.1:8001
+curl -i -H "Content-Type: application/json" -X POST -d '{"task" : "getArticles", "word" : "ta"}' 127.0.0.1:8001
+curl -i -H "Content-Type: application/json" -X POST -d '{"task" : "getFrequencyList"}' 127.0.0.1:8001
 '''

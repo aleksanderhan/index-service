@@ -90,18 +90,27 @@ class IndexService(resource.Resource):
     # Handles POST requests from the Search microservice.
     def render_POST(self, request):
         d = json.load(request.content)
-        if d['Partial'] == 'True':
-            word_root = d['Query']
+        if d['task'] == 'getSuggestions': # JSON fromat: {'task' : 'getSuggestions', 'word' : str}
+            word_root = d['word']
             data = self.index.query("SELECT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
             response = {"suggestions" : [t[0] for t in data]}
             return json.dumps(response)
-        elif d['Partial'] == 'False':
-            word = d['Query']
+        elif d['task'] == 'getArticles': # JSON format: {'task' : 'getArticles', 'word' : str}
+            word = d['word']
             data = self.index.query("SELECT url FROM wordfreq WHERE word = %s", (word,))
-            response = {"urls" : [t[0] for t in data]}
+            response = {"articleID" : [t[0] for t in data]}
             return json.dumps(response)
+        elif d['task'] == 'getFrequencyList': # JSON format: {'task' : 'getFrequencyList'}
+            data = self.index.query("SELECT (word, sum(SELECT frequency FROM wordfreq WHERE word)) FROM wordfreq;")
+            response ={"frequency" : data[0]}
+            return json.dumps(response)
+
         else:
             return('404')
+
+
+#{'wordfreq': 'word'} JSON format stavekontroll
+# SELECT (word, sum(SELECT frequency FROM wordfreq WHERE word)) FROM wordfreq;
 
 
 """ Request Client """
@@ -133,7 +142,7 @@ class Indexer:
         # Retriving the HTML source from the url:
         req = urllib2.Request(url)
         response = urllib2.urlopen(req)
-        page = str(response.read().encode('utf-8'))
+        page = str(response.read()) #.encode('utf-8'))
         response.close()
 
         # Parseing the HTML:
