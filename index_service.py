@@ -8,6 +8,7 @@ from twisted.internet import reactor, protocol
 from database_api import DatabaseAPI
 import urllib2
 import json
+import codecs
 
 
 """ Index microservice class """
@@ -84,7 +85,6 @@ class IndexService(resource.Resource):
             self.index_page(article_id_list[i]['id'])
         print("Indexing completed")
 
-
     # Indexes page at url.
     def index_page(self, article_id):
         host = self.get_service_ip()
@@ -94,22 +94,18 @@ class IndexService(resource.Resource):
 
     # Handles POST requests from the Search microservice.
     def render_POST(self, request):
-        print('you got mail')
         d = json.load(request.content)
         if d['task'] == 'getSuggestions': # JSON fromat: {'task' : 'getSuggestions', 'word' : str}
-            print('getSuggestions')
             word_root = d['word']
             data = self.index.query("SELECT DISTINCT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
             response = {"suggestions" : [t[0] for t in data]}
             return json.dumps(response)
         elif d['task'] == 'getArticles': # JSON format: {'task' : 'getArticles', 'word' : str}
-            print('getArticles')
             word = d['word']
             data = self.index.query("SELECT url FROM wordfreq WHERE word = %s", (word,))
             response = {"articleID" : [t[0] for t in data]}
             return json.dumps(response)
         elif d['task'] == 'getFrequencyList': # JSON format: {'task' : 'getFrequencyList'}
-            print('getFrequencyList')
             data = self.index.query("SELECT word, sum(frequency) FROM wordfreq GROUP BY word")
             response = {}
             for value in data:
@@ -139,10 +135,9 @@ class Indexer:
 
     def __init__(self, stopword_file_path):
         self.stopwords = set([''])
-
         # Reading in the stopword file:
-        with open(stopword_file_path, 'r') as f:
-            for word in f.readlines():
+        with codecs.open(stopword_file_path, encoding='utf-8') as f:
+            for word in f:
                 self.stopwords.add(word.strip())
 
     # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
@@ -150,7 +145,7 @@ class Indexer:
         # Retriving the HTML source from the url:
         req = urllib2.Request(url)
         response = urllib2.urlopen(req)
-        page = str(response.read()) #.encode('utf-8'))
+        page = response.read().decode('UTF-8')
         response.close()
 
         # Parseing the HTML:
