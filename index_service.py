@@ -92,10 +92,10 @@ class IndexService(resource.Resource):
         values = self.indexer.make_index(url, article_id)
         self.index.upsert(values)
 
-    # Handles POST requests from the Search microservice.
+    # Handles POST requests from the other microservices.
     def render_POST(self, request):
         d = json.load(request.content)
-        if d['task'] == 'getSuggestions': # JSON fromat: {'task' : 'getSuggestions', 'word' : str}
+        if d['task'] == 'getSuggestions': # JSON format: {'task' : 'getSuggestions', 'word' : str}
             word_root = d['word']
             data = self.index.query("SELECT DISTINCT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
             response = {"suggestions" : [t[0] for t in data]}
