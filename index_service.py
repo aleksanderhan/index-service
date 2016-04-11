@@ -16,6 +16,7 @@ class IndexService(resource.Resource):
     isLeaf = True
 
     def __init__(self, host, port, dbname, user, password, stopword_file_path):
+        resource.Resource.__init__(self) # not needed ?
         self.index = DatabaseAPI(host, port, dbname, user, password)
         self.indexer = Indexer(stopword_file_path)
         self.startup_routine()
@@ -64,7 +65,7 @@ class IndexService(resource.Resource):
     def index_all_articles(self):
         # **** TODO: dont index already indexed articles ****
         #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
-        host = self.get_service_ip()
+        host = self.get_service_ip('publish')
 
         agent = Agent(reactor) 
         d = agent.request("GET", host+"/list")
@@ -79,15 +80,14 @@ class IndexService(resource.Resource):
     # Indexes the articles in the GET response.
     def _index_content(self, response):
         article_id_list = json.loads(response)['list']
-        host = self.get_service_ip()
         for i in range(len(article_id_list)):
             print("Indexing article ", i+1, " of ", len(article_id_list))
-            self.index_page(article_id_list[i]['id'])
+            self.index_article(article_id_list[i]['id'])
         print("Indexing completed")
 
-    # Indexes page at url.
-    def index_page(self, article_id):
-        host = self.get_service_ip()
+    # Indexes page.
+    def index_article(self, article_id):
+        host = self.get_service_ip('publish')
         url = host+'/article/'+article_id
         values = self.indexer.make_index(url, article_id)
         self.index.upsert(values)
@@ -114,8 +114,10 @@ class IndexService(resource.Resource):
         else:
             return('404')
 
-    def get_service_ip(self):
+    # Temporary fuction to fetch a services address. Should connect with the dht node somehow
+    def get_service_ip(self, service_name):
         return "http://despina.128.no/publish"
+
 
 """ Request Client """
 class RequestClient(protocol.Protocol):
@@ -141,11 +143,11 @@ class Indexer:
                 self.stopwords.add(word.strip())
 
     # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
-    def make_index(self, url, articleID):
+    def make_index(self, url, article_id):
         # Retriving the HTML source from the url:
         req = urllib2.Request(url)
         response = urllib2.urlopen(req)
-        page = response.read().decode('UTF-8')
+        page = response.read() #.decode('UTF-8')
         response.close()
 
         # Parseing the HTML:
@@ -157,19 +159,21 @@ class Indexer:
         # Removing stopwords:
         unique_words = set(content).difference(self.stopwords)
 
-        # Making a list of tuples: (url, word, wordfreq):
+        # Making a list of tuples: (article_id, word, wordfreq):
         values = []
         for word in unique_words:
-            values.append((articleID, word, content.count(word)))
-
+            values.append((article_id, word, content.count(word)))
         return values
 
 
 """ Basic parser for parsing of html data """
 class Parser(HTMLParser):	
-    content = []
     tags_to_ignore = set(["script"]) # Add HTML tags to the set to ignore the data from that tag.
-    ignore_tag = False
+
+    def __init__(self):
+        self.content = []
+        self.ignore_tag = False
+        HTMLParser.__init__(self)
 
     # Keeps track of which tags to ignore data from.
     def handle_starttag(self, tag, attrs):
@@ -186,7 +190,7 @@ class Parser(HTMLParser):
         for word in data.split():
             if word.strip() == "":
                 continue
-            self.content.append(word.lower().strip("'.,;:/&()=?!`´´}][{-_"))
+            self.content.append(word.lower().strip("'.,;:/&()=?!`´´}][{-_<>"))
 
     # Get method for content.
     def get_content(self):

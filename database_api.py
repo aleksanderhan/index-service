@@ -28,11 +28,14 @@ class DatabaseAPI:
     # Inserts a list, values, with tuples of values into the database. On conflict update.
     def upsert(self, values):
         self._make_connection()
-        for value in values:
-            insert_sql = self.cursor.mogrify("INSERT INTO wordFreq (url, word, frequency) SELECT %s, %s, %s", value)
-            update_sql = self.cursor.mogrify("UPDATE wordFreq SET frequency = %s WHERE (url, word) = (%s, %s)", (value[2], value[0], value[1]))
-            upsert_sql = "WITH upsert AS ("+update_sql+" RETURNING *) "+insert_sql+" WHERE NOT EXISTS (SELECT * FROM upsert)"
-            self.cursor.execute(upsert_sql)
+        if values:
+            for value in values:
+                insert_sql = self.cursor.mogrify("INSERT INTO wordFreq (url, word, frequency) SELECT %s, %s, %s", value)
+                update_sql = self.cursor.mogrify("UPDATE wordFreq SET frequency = %s WHERE (url, word) = (%s, %s)", (value[2], value[0], value[1]))
+                upsert_sql = "WITH upsert AS ("+update_sql+" RETURNING *) "+insert_sql+" WHERE NOT EXISTS (SELECT * FROM upsert)"
+                self.cursor.execute(upsert_sql)
+        else:
+            print("no values to insert")
         self._close_connection()
 
     # Removes values with 'url'.
