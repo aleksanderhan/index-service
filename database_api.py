@@ -18,7 +18,7 @@ class DatabaseAPI:
 
     # Fuction for queries against the database. Takes a query string and if present a tuple with values and executes
     # the query, and returns the data.
-    def query(self, query, values):
+    def query(self, query, values = None):
         self._make_connection()
         self.cursor.execute(query, values)
         data = self.cursor.fetchall()

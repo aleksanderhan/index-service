@@ -101,10 +101,11 @@ class IndexService(resource.Resource):
             response = {"articleID" : [t[0] for t in data]}
             return json.dumps(response)
         elif d['task'] == 'getFrequencyList': # JSON format: {'task' : 'getFrequencyList'}
-            data = self.index.query("SELECT (word, sum(SELECT frequency FROM wordfreq WHERE word)) FROM wordfreq;")
-            response ={"frequency" : data[0]}
+            data = self.index.query("SELECT word, sum(frequency) FROM wordfreq GROUP BY word")
+            response = {}
+            for value in data:
+                response[value[0]] = value[1]
             return json.dumps(response)
-
         else:
             return('404')
 
