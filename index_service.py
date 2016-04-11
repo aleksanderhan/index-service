@@ -2,11 +2,10 @@
 from __future__ import print_function
 from HTMLParser import HTMLParser
 from twisted.web import server, resource
-from twisted.web.client import Agent, FileBodyProducer
+from twisted.web.client import Agent
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor, protocol
 from database_api import DatabaseAPI
-from StringIO import StringIO
 import urllib2
 import json
 
@@ -43,13 +42,13 @@ class IndexService(resource.Resource):
                 print("Option has to be a number between 1 and 3")
                 continue
 
-    # Creates new clean tables in the database
+    # Creates new clean tables in the database.
     def initialize_database(self):
         yes = set(['Y', 'y', 'Yes', 'yes', 'YES'])
         no = set(['N', 'n', 'No', 'no', 'NO'])
         while True:
             print("This will delete any existing data and reset the database.")
-            print("Are you sure you want to continue? [Y]es/[N]o")
+            print("Are you sure you want to continue? [y]es/[n]o")
             print(">> ", end="")
             user_input = str(raw_input())
             if user_input in yes:
@@ -75,7 +74,7 @@ class IndexService(resource.Resource):
         finished.addCallback(self._index_content)
         response.deliverBody(RequestClient(finished))
 
-    # Indexes the articles in the GET response
+    # Indexes the articles in the GET response.
     def _index_content(self, response):
         article_list = json.loads(response)['list']
         for i in range(len(article_list)):
@@ -88,7 +87,7 @@ class IndexService(resource.Resource):
         values = self.indexer.make_index(url)
         self.index.upsert(values)
 
-    # Handles POST requests from the Search microservice
+    # Handles POST requests from the Search microservice.
     def render_POST(self, request):
         d = json.load(request.content)
         if d['Partial'] == 'True':
@@ -114,7 +113,7 @@ class RequestClient(protocol.Protocol):
         self.data = data
 
     def connectionLost(self, reason):
-        self.finished.callback(self.data)  # Executes all registered callbacks
+        self.finished.callback(self.data)  # Executes all registered callbacks.
 
    
 """ Basic indexer of HTML pages """
@@ -134,7 +133,7 @@ class Indexer:
         # Retriving the HTML source from the url:
         req = urllib2.Request(url)
         response = urllib2.urlopen(req)
-        page = str(response.read()) #.decode('utf-8'))
+        page = str(response.read().encode('utf-8'))
         response.close()
 
         # Parseing the HTML:

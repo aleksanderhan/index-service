@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-from __future__ import print_function
+#from __future__ import print_function # Not needed ?
 from entangled.node import EntangledNode
 import netifaces as ni
 

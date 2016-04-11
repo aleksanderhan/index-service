@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-from __future__ import print_function
+#from __future__ import print_function # Not needed ?
 from node import Node
 from twisted.internet import reactor
 from twisted.web.resource import Resource
