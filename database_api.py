@@ -13,7 +13,7 @@ class DatabaseAPI:
     def make_tables(self):
         self._make_connection()
         self.cursor.execute("DROP TABLE IF EXISTS wordFreq")
-        self.cursor.execute("CREATE TABLE wordFreq (id serial PRIMARY KEY, url varchar, word varchar, frequency integer);")
+        self.cursor.execute("CREATE TABLE wordFreq (url VARCHAR, word VARCHAR, frequency INTEGER, PRIMARY KEY (url, word))")
         self._close_connection()
 
     # Fuction for queries against the database. Takes a query string and if present a tuple with values and executes
@@ -25,11 +25,14 @@ class DatabaseAPI:
         self._close_connection()
         return data
 
-    # Inserts a list, values, with tuples of values into the database.
-    def insert(self, values):
+    # Inserts a list, values, with tuples of values into the database. On conflict update.
+    def upsert(self, values):
         self._make_connection()
         for value in values:
-            self.cursor.execute("INSERT INTO wordFreq (url, word, frequency) VALUES (%s, %s, %s)", value)
+            insert_sql = self.cursor.mogrify("INSERT INTO wordFreq (url, word, frequency) SELECT %s, %s, %s", value)
+            update_sql = self.cursor.mogrify("UPDATE wordFreq SET frequency = %s WHERE (url, word) = (%s, %s)", (value[2], value[0], value[1]))
+            upsert_sql = "WITH upsert AS ("+update_sql+" RETURNING *) "+insert_sql+" WHERE NOT EXISTS (SELECT * FROM upsert)"
+            self.cursor.execute(upsert_sql)
         self._close_connection()
 
     # Removes values with 'url'.

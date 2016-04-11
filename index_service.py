@@ -35,10 +35,8 @@ class IndexService(resource.Resource):
             if user_input == '1':
                 self.initialize_database()   
             elif user_input == '2':
-                indexContent = True
+                self.index_all_articles()
             elif user_input == '3':
-                if indexContent:
-                    self.index_all_articles()
                 print("Starting index service. Use Ctrl + c to quit.")
                 break
             else:
@@ -88,7 +86,7 @@ class IndexService(resource.Resource):
     # Indexes page at url.
     def index_page(self, url):
         values = self.indexer.make_index(url)
-        self.index.insert(values)
+        self.index.upsert(values)
 
     # Handles POST requests from the Search microservice
     def render_POST(self, request):
@@ -117,13 +115,6 @@ class RequestClient(protocol.Protocol):
 
     def connectionLost(self, reason):
         self.finished.callback(self.data)  # Executes all registered callbacks
-
-
-
-    # 
-    #def connectionMade(self):
-        #return self.data
-        #self.finished.callback(self.data)
 
    
 """ Basic indexer of HTML pages """
