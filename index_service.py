@@ -62,7 +62,8 @@ class IndexService(resource.Resource):
     # Indexes all articles from the content microservice.
     def index_all_articles(self):
         # **** TODO: dont index already indexed articles ****
-        host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
+        #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
+        host = self.get_service_ip()
 
         agent = Agent(reactor) 
         d = agent.request("GET", host+"/list")
@@ -76,31 +77,39 @@ class IndexService(resource.Resource):
 
     # Indexes the articles in the GET response.
     def _index_content(self, response):
-        article_list = json.loads(response)['list']
-        for i in range(len(article_list)):
-            print("Indexing article ", i+1, " of ", len(article_list))
-            self.index_page(article_list[i]['id'])
+        article_id_list = json.loads(response)['list']
+        host = self.get_service_ip()
+        for i in range(len(article_id_list)):
+            print("Indexing article ", i+1, " of ", len(article_id_list))
+            self.index_page(article_id_list[i]['id'])
         print("Indexing completed")
 
+
     # Indexes page at url.
-    def index_page(self, url):
-        values = self.indexer.make_index(url)
+    def index_page(self, article_id):
+        host = self.get_service_ip()
+        url = host+'/article/'+article_id
+        values = self.indexer.make_index(url, article_id)
         self.index.upsert(values)
 
     # Handles POST requests from the Search microservice.
     def render_POST(self, request):
+        print('you got mail')
         d = json.load(request.content)
         if d['task'] == 'getSuggestions': # JSON fromat: {'task' : 'getSuggestions', 'word' : str}
+            print('getSuggestions')
             word_root = d['word']
             data = self.index.query("SELECT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
             response = {"suggestions" : [t[0] for t in data]}
             return json.dumps(response)
         elif d['task'] == 'getArticles': # JSON format: {'task' : 'getArticles', 'word' : str}
+            print('getArticles')
             word = d['word']
             data = self.index.query("SELECT url FROM wordfreq WHERE word = %s", (word,))
             response = {"articleID" : [t[0] for t in data]}
             return json.dumps(response)
         elif d['task'] == 'getFrequencyList': # JSON format: {'task' : 'getFrequencyList'}
+            print('getFrequencyList')
             data = self.index.query("SELECT word, sum(frequency) FROM wordfreq GROUP BY word")
             response = {}
             for value in data:
@@ -109,10 +118,8 @@ class IndexService(resource.Resource):
         else:
             return('404')
 
-
-#{'wordfreq': 'word'} JSON format stavekontroll
-# SELECT (word, sum(SELECT frequency FROM wordfreq WHERE word)) FROM wordfreq;
-
+    def get_service_ip(self):
+        return "http://despina.128.no/publish"
 
 """ Request Client """
 class RequestClient(protocol.Protocol):
@@ -139,7 +146,7 @@ class Indexer:
                 self.stopwords.add(word.strip())
 
     # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
-    def make_index(self, url):
+    def make_index(self, url, articleID):
         # Retriving the HTML source from the url:
         req = urllib2.Request(url)
         response = urllib2.urlopen(req)
@@ -158,7 +165,7 @@ class Indexer:
         # Making a list of tuples: (url, word, wordfreq):
         values = []
         for word in unique_words:
-            values.append((url, word, content.count(word)))
+            values.append((articleID, word, content.count(word)))
 
         return values
 
