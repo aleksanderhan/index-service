@@ -99,7 +99,7 @@ class IndexService(resource.Resource):
         if d['task'] == 'getSuggestions': # JSON fromat: {'task' : 'getSuggestions', 'word' : str}
             print('getSuggestions')
             word_root = d['word']
-            data = self.index.query("SELECT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
+            data = self.index.query("SELECT DISTINCT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
             response = {"suggestions" : [t[0] for t in data]}
             return json.dumps(response)
         elif d['task'] == 'getArticles': # JSON format: {'task' : 'getArticles', 'word' : str}
