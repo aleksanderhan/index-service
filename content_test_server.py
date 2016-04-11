@@ -8,7 +8,7 @@ class ContentTestServer(resource.Resource):
 
     def render_GET(self, request):
     	print("request recieved")
-        return json.dumps({"list": [{"id": "http://instabart.no/", "title":"instabart"}, {"id": "https://twistedmatrix.com/documents/16.0.0/api/twisted.internet.endpoints.connectProtocol.html", "title":"title2"}]})
+        return json.dumps({"list": [{"id": "http://instabart.no/", "title":"instabart"}]})
 
 
 reactor.listenTCP(8002, server.Site(ContentTestServer()))

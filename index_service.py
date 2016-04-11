@@ -38,7 +38,7 @@ class IndexService(resource.Resource):
                 indexContent = True
             elif user_input == '3':
                 if indexContent:
-                    self.index_content()
+                    self.index_all_articles()
                 print("Starting index service. Use Ctrl + c to quit.")
                 break
             else:
@@ -63,48 +63,47 @@ class IndexService(resource.Resource):
                 continue
 
     # Indexes all articles from the content microservice.
-    def index_content(self):
+    def index_all_articles(self):
         # **** TODO: dont index already indexed articles ****
         host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
-        urls = self.get_all_articles(host)
-        print(type(urls))
-        #for url in urls['list']:
-        #    self.index_page(url)
-        print("done")
 
-    # Asks content service for urls to all articles. Returns list of the urls.
-    def get_all_articles(self, host):
         agent = Agent(reactor) 
         d = agent.request("GET", host+"/list")
-        def cbRequest(response):
-            finished = Deferred()
-            response.deliverBody(RequestClient(finished))
-            return finished
-        d.addCallback(cbRequest)
+        d.addCallback(self._cbRequest)
+
+    #
+    def _cbRequest(self, response):
+        finished = Deferred()
+        finished.addCallback(self._index_content)
+        response.deliverBody(RequestClient(finished))
+
+    # Indexes the articles in the GET response
+    def _index_content(self, response):
+        article_list = json.loads(response)['list']
+        for i in range(len(article_list)):
+            print("Indexing article ", i+1, " of ", len(article_list))
+            self.index_page(article_list[i]['id'])
+        print("Indexing completed")
 
     # Indexes page at url.
     def index_page(self, url):
-        page = self.make_index(url)
-        self.index.insert(page)
+        values = self.indexer.make_index(url)
+        self.index.insert(values)
 
     # Handles POST requests from the Search microservice
     def render_POST(self, request):
         d = json.load(request.content)
-        response = None
-        if d['Partial'] == True:
-            print(True)
+        if d['Partial'] == 'True':
             word_root = d['Query']
-            data = self.index.query("SELECT * wordfreq WHERE word LIKE '%s%'", word_root)
-            print(data)
-            return data
-        if d['Partial'] == False:
-            print(False)
+            data = self.index.query("SELECT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
+            response = {"suggestions" : [t[0] for t in data]}
+            return json.dumps(response)
+        elif d['Partial'] == 'False':
             word = d['Query']
-            data = self.index.query("SELECT * FROM wordfreq WHERE word=(%s)", word)
-            print(data)
-            return data
+            data = self.index.query("SELECT url FROM wordfreq WHERE word = %s", (word,))
+            response = {"urls" : [t[0] for t in data]}
+            return json.dumps(response)
         else:
-            print("you got mail")
             return('404')
 
 
@@ -113,10 +112,11 @@ class RequestClient(protocol.Protocol):
     def __init__(self, finished):
         self.finished = finished
 
-    # Handles data received from GET response
-    def dataReceived(self, bytes):
-        data = bytes[:]
-        print(data)
+    def dataReceived(self, data):
+        self.data = data
+
+    def connectionLost(self, reason):
+        self.finished.callback(self.data)  # Executes all registered callbacks
 
 
 
