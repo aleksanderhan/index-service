@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from index_service import IndexService
-from node_api import *
+#from node_api import *
 import sys
 
 
@@ -9,7 +9,6 @@ def main():
 
     c = read_config()
     index_service = IndexService(c['db_host'], c['db_port'], c['db_name'], c['db_user'], c['db_pass'], c['stopword_file_path'])
-
 
 def read_config():
     try:
