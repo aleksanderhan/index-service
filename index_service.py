@@ -85,6 +85,7 @@ class IndexService(resource.Resource):
             self.index_article(article_id_list[i]['id'])
         print("Indexing completed")
 
+
     # Indexes page.
     def index_article(self, article_id):
         host = self.get_service_ip('publish')
@@ -132,7 +133,7 @@ class RequestClient(protocol.Protocol):
 
    
 """ Basic indexer of HTML pages """
-class Indexer:
+class Indexer(object):
     stopwords = None
 
     def __init__(self, stopword_file_path):

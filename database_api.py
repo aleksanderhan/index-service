@@ -3,7 +3,7 @@ import psycopg2
 
 
 """ PostgresSQL database API """
-class DatabaseAPI:
+class DatabaseAPI(object):
     conn, cursor = None, None
 
     def __init__(self, host, port, dbname, user, password):
