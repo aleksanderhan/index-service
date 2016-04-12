@@ -7,8 +7,17 @@ import sys
 # Main
 def main():
 
-    stopword_file_path = "stopwords_norwegian.txt"
-    index_service = IndexService('despina.128.no', '5432', 'index', 'index', sys.argv[1], stopword_file_path)
+    c = read_config()
+    index_service = IndexService(c['db_host'], c['db_port'], c['db_name'], c['db_user'], c['db_pass'], c['stopword_file_path'])
+
+
+def read_config():
+    try:
+        with open('config.txt', 'r') as f:
+            d = eval(f.read())
+        return d
+    except:
+        raise IOError("config.txt not present")
 
 
 if __name__ == "__main__":  
