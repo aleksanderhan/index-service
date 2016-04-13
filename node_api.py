@@ -10,7 +10,7 @@ import cgi
 import json
 import util
 
-#logger = util.create_logger("node_api.log")
+logger = util.create_logger("node_api.log")
 
 
 class NodeAPI(Resource):

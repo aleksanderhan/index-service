@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 from HTMLParser import HTMLParser
-from twisted.web import server, resource
+from twisted.web import server
+from twisted.web.resource import Resource
 from twisted.web.client import Agent
 from twisted.internet.defer import Deferred
-from twisted.internet import reactor, protocol
+from twisted.internet import reactor
+from twisted.internet.protocol import Protocol
 from database_api import DatabaseAPI
 import urllib
-#import urllib2
 import json
 import codecs
 import re
 
 
 """ Index microservice class """
-class IndexService(resource.Resource):
+class IndexService(Resource):
     isLeaf = True
 
     def __init__(self, host, port, dbname, user, password, stopword_file_path):
-        resource.Resource.__init__(self) # not needed ?
+        Resource.__init__(self)
         self.index = DatabaseAPI(host, port, dbname, user, password)
         self.indexer = Indexer(stopword_file_path)
         self.startup_routine()
@@ -95,26 +96,27 @@ class IndexService(resource.Resource):
                 print()
                 continue
 
-    #
+    # Callback request
     def _cbRequest(self, response):
         finished = Deferred()
         finished.addCallback(self._index_content)
         response.deliverBody(RequestClient(finished))
 
-    # Indexes the articles in the GET response.
+    # Callback for _cbRequest. Indexes the articles in the GET response.
     def _index_content(self, response):
         article_id_list = json.loads(response)['list']
         for i in range(len(article_id_list)):
             print("Indexing article ", i+1, " of ", len(article_id_list))
-            self.index_article(article_id_list[i]['id'])
+            article_id = article_id_list[i]['id']
+            self.index_article(article_id)
         print("Indexing completed")
 
     # Indexes page.
     def index_article(self, article_id):
         host = self.get_service_ip('publish')
-        url = host+'/article/'+article_id
-        values = self.indexer.make_index(url, article_id)
-        self.index.upsert(values)
+        url = host+'/article/'+article_id # Articles are found at: http://<publish_module_ip>:<port_num>/article/<article_id> 
+        values = self.indexer.make_index(url)
+        self.index.upsert(article_id, values)
 
     # Handles POST requests from the other microservices.
     def render_POST(self, request):
@@ -126,7 +128,7 @@ class IndexService(resource.Resource):
             return json.dumps(response)
         elif d['task'] == 'getArticles': # JSON format: {'task' : 'getArticles', 'word' : str}
             word = d['word']
-            data = self.index.query("SELECT url FROM wordfreq WHERE word = %s", (word,))
+            data = self.index.query("SELECT articleID FROM wordfreq WHERE word = %s", (word,))
             response = {"articleID" : [t[0] for t in data]}
             return json.dumps(response)
         elif d['task'] == 'getFrequencyList': # JSON format: {'task' : 'getFrequencyList'}
@@ -135,6 +137,18 @@ class IndexService(resource.Resource):
             for value in data:
                 response[value[0]] = value[1]
             return json.dumps(response)
+        elif d['task'] == 'updatedArticle':
+            article_id = d['articleID']
+            self.index.remove(article_id)
+            self.index.upsert(article_id)
+            return 'thanks!'
+        elif d['task'] == 'publishedArticle':
+            article_id = d['articleID']
+            self.index.upsert(article_id)
+            return 'thanks!'
+        elif d['task'] == 'removedArticle':
+            article_id = d['articleID']
+            self.index.remove(article_id)
         else:
             return('404')
 
@@ -144,7 +158,7 @@ class IndexService(resource.Resource):
 
 
 """ Request Client """
-class RequestClient(protocol.Protocol):
+class RequestClient(Protocol):
     def __init__(self, finished):
         self.finished = finished
 
@@ -167,7 +181,7 @@ class Indexer(object):
                 self.stopwords.add(unicode(word.strip()))
 
     # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
-    def make_index(self, url, article_id):
+    def make_index(self, url):
         # Retriving the HTML source from the url:
         '''
         req = urllib2.Request(url)
@@ -186,10 +200,10 @@ class Indexer(object):
         # Removing stopwords:
         unique_words = set(content).difference(self.stopwords)
 
-        # Making a list of tuples: (article_id, word, wordfreq):
+        # Making a list of tuples: (word, wordfreq):
         values = []
         for word in unique_words:
-            values.append((article_id, word, content.count(word)))
+            values.append((word, content.count(word)))
         return values
 
 
@@ -198,9 +212,9 @@ class Parser(HTMLParser):
     tags_to_ignore = set(["script"]) # Add HTML tags to the set to ignore the data from that tag.
 
     def __init__(self):
-        self.content = []
-        self.ignore_tag = False
         HTMLParser.__init__(self)
+        self.content = []
+        self.ignore_tag = False  
 
     # Keeps track of which tags to ignore data from.
     def handle_starttag(self, tag, attrs):
