@@ -8,87 +8,99 @@ from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol
 from database_api import DatabaseAPI
-import urllib
-import json
-import codecs
-import re
+import urllib, json
+import codecs, re
+import util
 
 
 """ Index microservice class """
 class IndexService(Resource):
     isLeaf = True
 
-    def __init__(self, host, port, dbname, user, password, stopword_file_path):
+    def __init__(self, args):
         Resource.__init__(self)
+        host, port = args['db_host'], args['db_port']
+        dbname, user, password = args['db_name'], args['db_user'], args['db_pass']   
+        stopword_file_path = args['stopword_file_path']
         self.index = DatabaseAPI(host, port, dbname, user, password)
         self.indexer = Indexer(stopword_file_path)
+        self.index_on_startup = False
         self.startup_routine()
 
     # Asks the user for some questions at startup.
     def startup_routine(self):
         indexContent = False
+        yes = set(['', 'Y', 'y', 'Yes', 'yes', 'YES'])
+        no = set(['N', 'n', 'No', 'no', 'NO'])
         print("Type 'help' for help.")
         while True:
             print(">> ", end="")
             user_input = str(raw_input())
+            # Print available commands to user.
             if user_input == 'help':
                 print()
-                print("         help    -   Help.")
-                print("         reset   -   Reset index database.")
-                print("         init    -   Index all articles from content service on startup.")
-                print("         start   -   Start service.")
-                print("         exist   -   Quit.")
+                print("         <command>   -       <description>")
+                print("         help        -       Help.")
+                print("         reset       -       Reset index database.")
+                print("         init        -       Index all articles from content service on startup.")
+                print("         start       -       Start service.")
+                print("         exit        -       Quit.")
                 print()
+            # Clearing tables in the index database.
             elif user_input == 'reset':
-                self.reset_database()   
+                print("This will delete any existing data and reset the database.")
+                print("Are you sure you want to continue? [Y/n] ", end="")
+                while True:
+                    user_input = str(raw_input())
+                    if user_input in yes:
+                        self.index.make_tables()
+                        print("Reset.")
+                        break
+                    else:
+                        print("Abort.")
+                        break
+            # Toggle on/off indexing on startup
             elif user_input == 'init':
-                self.index_all_articles()
+                while True:
+                    print("Do you want to index all the articles on startup? [Y/n] ", end="") 
+                    user_input = str(raw_input())
+                    if user_input in yes:
+                        self.index_on_startup = True
+                        print("Indexing will begin on start.")
+                        break
+                    elif user_input in no:
+                        print("Indexing will not begin on start.")
+                        self.index_on_startup = False
+                        break
+                    else:
+                        print("Abort.")
+                        break
+            # Start indexing service
             elif user_input == 'start':
                 print("Starting index service. Use Ctrl + c to quit.")
+                if self.index_on_startup:
+                    self.index_all_articles()
                 reactor.listenTCP(8001, server.Site(self))
                 reactor.run()
                 break
+            # End program.
             elif user_input == 'exit':
                 break
+            # Yes is default on return.
             elif user_input == '':
                 continue
             else:
                 print(user_input + ": command not found")
                 continue
 
-    # Creates new clean tables in the database.
-    def reset_database(self):
-        yes = set(['', 'Y', 'y', 'Yes', 'yes', 'YES'])
-        while True:
-            print("This will delete any existing data and reset the database.")
-            print("Are you sure you want to continue? [Y/n] ", end="")
-            user_input = str(raw_input())
-            if user_input in yes:
-                self.index.make_tables()
-                break
-            else:
-                print("Abort.")
-                break
-
     # Indexes all articles from the content microservice.
     def index_all_articles(self):
         # **** TODO: dont index already indexed articles ****
         #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
         host = self.get_service_ip('publish') + "/list"
-
-        yes = set(['', 'Y', 'y', 'Yes', 'yes', 'YES'])
-        while True:
-            print("Do you want to index all the articles at: '" + host + "'?") 
-            print("[Y/n] ", end="")
-            user_input = str(raw_input())
-            if user_input in yes:
-                agent = Agent(reactor) 
-                d = agent.request("GET", host)
-                d.addCallback(self._cbRequest)
-                break
-            else:
-                print("Abort.")
-                break
+        agent = Agent(reactor) 
+        d = agent.request("GET", host)
+        d.addCallback(self._cbRequest)
 
     # Callback request
     def _cbRequest(self, response):

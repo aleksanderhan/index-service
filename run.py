@@ -2,13 +2,13 @@
 from index_service import IndexService
 #from node_api import *
 import sys
+import util
 
 
 # Main
 def main():
-
-    c = read_config()
-    index_service = IndexService(c['db_host'], c['db_port'], c['db_name'], c['db_user'], c['db_pass'], c['stopword_file_path'])
+    args = read_config()
+    index_service = IndexService(args)
 
 def read_config():
     try:
@@ -17,7 +17,6 @@ def read_config():
         return d
     except:
         raise IOError("config.txt not present")
-
 
 if __name__ == "__main__":  
     main()
