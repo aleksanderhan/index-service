@@ -12,7 +12,6 @@ import urllib, json
 import codecs, re
 
 
-
 class IndexService(Resource):
     """ 
     Index microservice class 
@@ -146,7 +145,7 @@ class IndexService(Resource):
         elif d['task'] == 'updatedArticle':
             article_id = d['articleID']
             self.index.remove(article_id)
-            self.index.upsert(article_id)
+            self.index_article(article_id)
             return 'thanks!'
         elif d['task'] == 'publishedArticle':
             article_id = d['articleID']
@@ -164,7 +163,6 @@ class IndexService(Resource):
         return "http://despina.128.no/publish"
 
 
-
 class RequestClient(Protocol):
     """ 
     Request Client 
@@ -180,7 +178,6 @@ class RequestClient(Protocol):
         self.finished.callback(self.data)
 
    
-
 class Indexer(object):
     """ 
     Basic indexer of HTML pages 
@@ -214,7 +211,6 @@ class Indexer(object):
         for word in unique_words:
             values.append((word, content.count(word)))
         return values
-
 
 
 class Parser(HTMLParser):	

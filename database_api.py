@@ -6,7 +6,7 @@ class DatabaseAPI(object):
     """ 
     PostgresSQL database API 
     """
-    
+
     conn, cursor = None, None
 
     def __init__(self, host, port, dbname, user, password):
@@ -44,9 +44,8 @@ class DatabaseAPI(object):
 
     # Removes values with 'url'.
     def remove(self, article_id):
-        print(article_id)
         self._make_connection()
-        self.cursor.execute("DELETE FROM wordfreq WHERE articleid EQUALS %s", article_id)
+        self.cursor.execute("DELETE FROM wordfreq WHERE (articleid) = (%s)", (article_id,))
         self._close_connection()
       
     # Starts psycopg2 connection to the postgres database. Must be run before any queries, inserts etc is to be done.
