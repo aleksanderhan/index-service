@@ -24,52 +24,51 @@ class IndexService(Resource):
         self.indexer = Indexer(stopword_file_path)
         self.startup_routine()
 
-
     # Asks the user for some questions at startup.
     def startup_routine(self):
         indexContent = False
+        print("Type 'help' for help.")
         while True:
-            print()
-            print("************ Index microservice options: ************")
-            print("1. Reset and initialize index database")
-            print("2. Index all articles from content service on startup")
-            print("3. Start service")
-            print("4. Quit")
             print(">> ", end="")
             user_input = str(raw_input())
-            print()
-            if user_input == '1':
-                self.initialize_database()   
-            elif user_input == '2':
+            if user_input == 'help':
+                print()
+                print("         help    -   Help.")
+                print("         reset   -   Reset index database.")
+                print("         init    -   Index all articles from content service on startup.")
+                print("         start   -   Start service.")
+                print("         exist   -   Quit.")
+                print()
+            elif user_input == 'reset':
+                self.reset_database()   
+            elif user_input == 'init':
                 self.index_all_articles()
-            elif user_input == '3':
+            elif user_input == 'start':
                 print("Starting index service. Use Ctrl + c to quit.")
                 reactor.listenTCP(8001, server.Site(self))
                 reactor.run()
                 break
-            elif user_input == '4':
+            elif user_input == 'exit':
                 break
+            elif user_input == '':
+                continue
             else:
-                print("Option has to be a number between 1 and 3")
+                print(user_input + ": command not found")
                 continue
 
     # Creates new clean tables in the database.
-    def initialize_database(self):
-        yes = set(['Y', 'y', 'Yes', 'yes', 'YES'])
-        no = set(['N', 'n', 'No', 'no', 'NO'])
+    def reset_database(self):
+        yes = set(['', 'Y', 'y', 'Yes', 'yes', 'YES'])
         while True:
             print("This will delete any existing data and reset the database.")
-            print("Are you sure you want to continue? [y]es/[n]o")
-            print(">> ", end="")
+            print("Are you sure you want to continue? [Y/n] ", end="")
             user_input = str(raw_input())
             if user_input in yes:
                 self.index.make_tables()
                 break
-            elif user_input in no:
-                break
             else:
-                print()
-                continue
+                print("Abort.")
+                break
 
     # Indexes all articles from the content microservice.
     def index_all_articles(self):
@@ -77,23 +76,19 @@ class IndexService(Resource):
         #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
         host = self.get_service_ip('publish') + "/list"
 
-        yes = set(['Y', 'y', 'Yes', 'yes', 'YES'])
-        no = set(['N', 'n', 'No', 'no', 'NO'])
+        yes = set(['', 'Y', 'y', 'Yes', 'yes', 'YES'])
         while True:
-            print("Do you want to index all articles at: '" + host + "'?") 
-            print("y]es/[n]o: ", end="")
-            #print(">> ", end="")
+            print("Do you want to index all the articles at: '" + host + "'?") 
+            print("[Y/n] ", end="")
             user_input = str(raw_input())
             if user_input in yes:
                 agent = Agent(reactor) 
                 d = agent.request("GET", host)
                 d.addCallback(self._cbRequest)
                 break
-            elif user_input in no:
-                break
             else:
-                print()
-                continue
+                print("Abort.")
+                break
 
     # Callback request
     def _cbRequest(self, response):
