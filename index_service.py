@@ -20,25 +20,30 @@ class IndexService(resource.Resource):
         self.index = DatabaseAPI(host, port, dbname, user, password)
         self.indexer = Indexer(stopword_file_path)
         self.startup_routine()
-        reactor.listenTCP(8001, server.Site(self))
-        reactor.run()
+
 
     # Asks the user for some questions at startup.
     def startup_routine(self):
         indexContent = False
         while True:
-            print("Options:")
-            print("1. Initialize database")
-            print("2. Index all articles from content")
+            print()
+            print("************ Index microservice options: ************")
+            print("1. Reset and initialize index database")
+            print("2. Index all articles from content service on startup")
             print("3. Start service")
+            print("4. Quit")
             print(">> ", end="")
             user_input = str(raw_input())
+            print()
             if user_input == '1':
                 self.initialize_database()   
             elif user_input == '2':
                 self.index_all_articles()
             elif user_input == '3':
                 print("Starting index service. Use Ctrl + c to quit.")
+                reactor.listenTCP(8001, server.Site(self))
+                reactor.run()
+            elif user_input == '4':
                 break
             else:
                 print("Option has to be a number between 1 and 3")
@@ -59,6 +64,7 @@ class IndexService(resource.Resource):
             elif user_input in no:
                 break
             else:
+                print()
                 continue
 
     # Indexes all articles from the content microservice.
@@ -67,9 +73,23 @@ class IndexService(resource.Resource):
         #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
         host = self.get_service_ip('publish')
 
-        agent = Agent(reactor) 
-        d = agent.request("GET", host+"/list")
-        d.addCallback(self._cbRequest)
+        yes = set(['Y', 'y', 'Yes', 'yes', 'YES'])
+        no = set(['N', 'n', 'No', 'no', 'NO'])
+        while True:
+            print("Do you want to index all articles at: ") 
+            print("'" + host + "/list'? [y]es/[n]o")
+            print(">> ", end="")
+            user_input = str(raw_input())
+            if user_input in yes:
+                agent = Agent(reactor) 
+                d = agent.request("GET", host+"/list")
+                d.addCallback(self._cbRequest)
+                break
+            elif user_input in no:
+                break
+            else:
+                print()
+                continue
 
     #
     def _cbRequest(self, response):
