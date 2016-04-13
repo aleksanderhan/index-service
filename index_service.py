@@ -10,19 +10,19 @@ from twisted.internet.protocol import Protocol
 from database_api import DatabaseAPI
 import urllib, json
 import codecs, re
-import util
 
 
-""" Index microservice class """
+
 class IndexService(Resource):
+    """ 
+    Index microservice class 
+    """
+
     isLeaf = True
 
-    def __init__(self, args):
+    def __init__(self, db_host, db_port, db_name, db_user, db_pass, stopword_file_path):
         Resource.__init__(self)
-        host, port = args['db_host'], args['db_port']
-        dbname, user, password = args['db_name'], args['db_user'], args['db_pass']   
-        stopword_file_path = args['stopword_file_path']
-        self.index = DatabaseAPI(host, port, dbname, user, password)
+        self.index = DatabaseAPI(db_host, db_port, db_name, db_user, db_pass)
         self.indexer = Indexer(stopword_file_path)
         self.index_on_startup = False
         self.startup_routine()
@@ -59,7 +59,7 @@ class IndexService(Resource):
                     else:
                         print("Abort.")
                         break
-            # Toggle on/off indexing on startup
+            # Toggle on/off indexing on startup.
             elif user_input == 'init':
                 while True:
                     print("Do you want to index all the articles on startup? [Y/n] ", end="") 
@@ -75,7 +75,7 @@ class IndexService(Resource):
                     else:
                         print("Abort.")
                         break
-            # Start indexing service
+            # Start indexing service.
             elif user_input == 'start':
                 print("Starting index service. Use Ctrl + c to quit.")
                 if self.index_on_startup:
@@ -102,7 +102,7 @@ class IndexService(Resource):
         d = agent.request("GET", host)
         d.addCallback(self._cbRequest)
 
-    # Callback request
+    # Callback request.
     def _cbRequest(self, response):
         finished = Deferred()
         finished.addCallback(self._index_content)
@@ -127,37 +127,31 @@ class IndexService(Resource):
     # Handles POST requests from the other microservices.
     def render_POST(self, request):
         d = json.load(request.content)
-        # When suggestions for words are needed:
         if d['task'] == 'getSuggestions': # JSON format: {'task' : 'getSuggestions', 'word' : str}
             word_root = d['word']
             data = self.index.query("SELECT DISTINCT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
             response = {"suggestions" : [t[0] for t in data]}
             return json.dumps(response)
-        # When articles with a given word is needed:
         elif d['task'] == 'getArticles': # JSON format: {'task' : 'getArticles', 'word' : str}
             word = d['word']
             data = self.index.query("SELECT articleid FROM wordfreq WHERE word = %s", (word,))
             response = {"articleID" : [t[0] for t in data]}
             return json.dumps(response)
-        # When the word frequency list is needed:
         elif d['task'] == 'getFrequencyList': # JSON format: {'task' : 'getFrequencyList'}
             data = self.index.query("SELECT word, sum(frequency) FROM wordfreq GROUP BY word")
             response = {}
             for value in data:
                 response[value[0]] = value[1]
             return json.dumps(response)
-        # When an article is updated:
         elif d['task'] == 'updatedArticle':
             article_id = d['articleID']
             self.index.remove(article_id)
             self.index.upsert(article_id)
             return 'thanks!'
-        # When an article is published:
         elif d['task'] == 'publishedArticle':
             article_id = d['articleID']
             self.index.upsert(article_id)
             return 'thanks!'
-        # When an article is removed:
         elif d['task'] == 'removedArticle':
             article_id = d['articleID']
             self.index.remove(article_id)
@@ -165,13 +159,17 @@ class IndexService(Resource):
         else:
             return('404')
 
-    # Temporary fuction to fetch a services address. Should connect with the dht node somehow
+    # Temporary fuction to fetch a services address. Should connect with the dht node somehow.
     def get_service_ip(self, service_name):
         return "http://despina.128.no/publish"
 
 
-""" Request Client """
+
 class RequestClient(Protocol):
+    """ 
+    Request Client 
+    """
+
     def __init__(self, finished):
         self.finished = finished
 
@@ -179,11 +177,15 @@ class RequestClient(Protocol):
         self.data = data
 
     def connectionLost(self, reason):
-        self.finished.callback(self.data)  # Executes all registered callbacks.
+        self.finished.callback(self.data)
 
    
-""" Basic indexer of HTML pages """
+
 class Indexer(object):
+    """ 
+    Basic indexer of HTML pages 
+    """
+
     stopwords = None
 
     def __init__(self, stopword_file_path):
@@ -196,12 +198,6 @@ class Indexer(object):
     # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
     def make_index(self, url):
         # Retriving the HTML source from the url:
-        '''
-        req = urllib2.Request(url)
-        response = urllib2.urlopen(req)
-        page = response.read() #.decode('UTF-8')
-        response.close()
-        '''
         page = urllib.urlopen(url).read().decode('utf-8')
 
         # Parseing the HTML:
@@ -220,8 +216,12 @@ class Indexer(object):
         return values
 
 
-""" Basic parser for parsing of html data """
+
 class Parser(HTMLParser):	
+    """ 
+    Basic parser for parsing of html data 
+    """
+    
     tags_to_ignore = set(["script"]) # Add HTML tags to the set to ignore the data from that tag.
 
     def __init__(self):
