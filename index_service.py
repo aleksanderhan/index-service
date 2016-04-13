@@ -74,16 +74,15 @@ class IndexService(Resource):
     # Indexes all articles from the content microservice.
     def index_all_articles(self):
         # **** TODO: dont index already indexed articles ****
-        host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
-        
+        #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
         host = self.get_service_ip('publish') + "/list"
 
         yes = set(['Y', 'y', 'Yes', 'yes', 'YES'])
         no = set(['N', 'n', 'No', 'no', 'NO'])
         while True:
-            print("Do you want to index all articles at: ") 
-            print("'" + host + "'? [y]es/[n]o")
-            print(">> ", end="")
+            print("Do you want to index all articles at: '" + host + "'?") 
+            print("y]es/[n]o: ", end="")
+            #print(">> ", end="")
             user_input = str(raw_input())
             if user_input in yes:
                 agent = Agent(reactor) 
@@ -121,34 +120,41 @@ class IndexService(Resource):
     # Handles POST requests from the other microservices.
     def render_POST(self, request):
         d = json.load(request.content)
+        # When suggestions for words are needed:
         if d['task'] == 'getSuggestions': # JSON format: {'task' : 'getSuggestions', 'word' : str}
             word_root = d['word']
             data = self.index.query("SELECT DISTINCT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
             response = {"suggestions" : [t[0] for t in data]}
             return json.dumps(response)
+        # When articles with a given word is needed:
         elif d['task'] == 'getArticles': # JSON format: {'task' : 'getArticles', 'word' : str}
             word = d['word']
-            data = self.index.query("SELECT articleID FROM wordfreq WHERE word = %s", (word,))
+            data = self.index.query("SELECT articleid FROM wordfreq WHERE word = %s", (word,))
             response = {"articleID" : [t[0] for t in data]}
             return json.dumps(response)
+        # When the word frequency list is needed:
         elif d['task'] == 'getFrequencyList': # JSON format: {'task' : 'getFrequencyList'}
             data = self.index.query("SELECT word, sum(frequency) FROM wordfreq GROUP BY word")
             response = {}
             for value in data:
                 response[value[0]] = value[1]
             return json.dumps(response)
+        # When an article is updated:
         elif d['task'] == 'updatedArticle':
             article_id = d['articleID']
             self.index.remove(article_id)
             self.index.upsert(article_id)
             return 'thanks!'
+        # When an article is published:
         elif d['task'] == 'publishedArticle':
             article_id = d['articleID']
             self.index.upsert(article_id)
             return 'thanks!'
+        # When an article is removed:
         elif d['task'] == 'removedArticle':
             article_id = d['articleID']
             self.index.remove(article_id)
+            return('ok!')
         else:
             return('404')
 

@@ -12,11 +12,11 @@ class DatabaseAPI(object):
     # Calls to the function resets the database with a clean table.
     def make_tables(self):
         self._make_connection()
-        self.cursor.execute("DROP TABLE IF EXISTS wordFreq")
-        self.cursor.execute("CREATE TABLE wordFreq (articleID VARCHAR, word VARCHAR, frequency INTEGER, PRIMARY KEY (articleID, word))")
+        self.cursor.execute("DROP TABLE IF EXISTS wordfreq")
+        self.cursor.execute("CREATE TABLE wordFreq (articleid VARCHAR, word VARCHAR, frequency INTEGER, PRIMARY KEY (articleid, word))")
         self._close_connection()
 
-    # Fuction for queries against the database. Takes a query string and if present a tuple with values and executes
+    # Fuction for custom queries against the database. Takes a query string and if present a tuple with values and executes
     # the query, and returns the data.
     def query(self, query, values = None):
         self._make_connection()
@@ -31,8 +31,8 @@ class DatabaseAPI(object):
         if values:
             for value in values:
                 word, freq = value[0], value[1]
-                insert_sql = self.cursor.mogrify("INSERT INTO wordFreq (articleID, word, frequency) SELECT %s, %s, %s", (article_id, word, freq))
-                update_sql = self.cursor.mogrify("UPDATE wordFreq SET frequency = %s WHERE (articleID, word) = (%s, %s)", (freq, article_id, word))
+                insert_sql = self.cursor.mogrify("INSERT INTO wordfreq (articleid, word, frequency) SELECT %s, %s, %s", (article_id, word, freq))
+                update_sql = self.cursor.mogrify("UPDATE wordfreq SET frequency = %s WHERE (articleid, word) = (%s, %s)", (freq, article_id, word))
                 upsert_sql = "WITH upsert AS ("+update_sql+" RETURNING *) "+insert_sql+" WHERE NOT EXISTS (SELECT * FROM upsert)"
                 self.cursor.execute(upsert_sql)
         else:
@@ -41,8 +41,9 @@ class DatabaseAPI(object):
 
     # Removes values with 'url'.
     def remove(self, article_id):
+        print(article_id)
         self._make_connection()
-        self.cursor.execute("DELETE FROM wordFreq WHERE (articleID) EQUALS (%s)", article_id)
+        self.cursor.execute("DELETE FROM wordfreq WHERE articleid EQUALS %s", article_id)
         self._close_connection()
       
     # Starts psycopg2 connection to the postgres database. Must be run before any queries, inserts etc is to be done.
