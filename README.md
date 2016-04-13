@@ -11,6 +11,15 @@ Indexing micoservice for the IT2901 project 2016
 
 Send JSON POST request to 'http://index_service_ip:8001'<br />
 JSON format:<br />
-Input: '{'task' : 'getSuggestions', 'word' : str}' Output: '{'suggestions' : ['word1', 'word2', ...]}'<br />
-Input: '{'task' : 'getArticles', 'word' : str}' Output: '{'articleID' : ['id1', 'id2', ...]}'<br />
-Input: '{'task' : 'getFrequencyList'}' Output: '{'word1' : freq_word1, 'word2' : freq_word2}'<br />
+Input: {'task' : 'getSuggestions', 'word' : str}            Output: {'suggestions' : ['word1', 'word2', ...]}<br />
+Input: {'task' : 'getArticles', 'word' : str}               Output: {'articleID' : ['id1', 'id2', ...]}<br />
+Input: {'task' : 'getFrequencyList'}                        Output: {'word1' : freq_word1, 'word2' : freq_word2}<br />
+
+The index service requires that the publish module responds with a JSON on the form:  
+{"list": [{"id": id1, ""title":title1}, {"id": id2, ""title":title2}, {"id": id2, ""title":title2}, ...]}
+when GET requests are sent to 'http://publish_module_ip:port_num/list'
+
+Furthermore publish needs to send JSON POST requests to 'http://index_service_ip:8001' when an article is published, removed or updated on the form:
+Input: {'task' : 'publishedArticle', 'articleID' : 'id'}
+Input: {'task' : 'removedArticle', 'articleID' : 'id'}
+Input: {'task' : 'updatedArticle', articleID' : 'id'}
