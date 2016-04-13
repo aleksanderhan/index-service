@@ -9,6 +9,7 @@ from database_api import DatabaseAPI
 import urllib2
 import json
 import codecs
+import re
 
 
 """ Index microservice class """
@@ -43,6 +44,7 @@ class IndexService(resource.Resource):
                 print("Starting index service. Use Ctrl + c to quit.")
                 reactor.listenTCP(8001, server.Site(self))
                 reactor.run()
+                break
             elif user_input == '4':
                 break
             else:
@@ -166,11 +168,15 @@ class Indexer(object):
     # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
     def make_index(self, url, article_id):
         # Retriving the HTML source from the url:
+        
         req = urllib2.Request(url)
         response = urllib2.urlopen(req)
         page = response.read() #.decode('UTF-8')
         response.close()
-
+        '''
+        with codecs.open(urllib2.urlopen(urllib2.Request(url).read()), encoding='utf-8') as response:
+            page = response
+        '''
         # Parseing the HTML:
         parser = Parser()
         parser.feed(page)
@@ -205,17 +211,17 @@ class Parser(HTMLParser):
       
     # Handles data from tags.  
     def handle_data(self, data):
-        if data.strip() == "" or self.ignore_tag:
+        if self.ignore_tag:
             return
-
-        for word in data.split():
-            if word.strip() == "":
-                continue
-            self.content.append(word.lower().strip("'.,;:/&()=?!`´´}][{-_<>"))
+        words = filter(None, re.split("[ .,:;()!#¤%&=?+`´*_@£$<>^~/\[\]\{\}\-\"\']+", data))
+        for word in words:
+            if len(word) > 1:
+                self.content.append(word.lower().strip())
 
     # Get method for content.
     def get_content(self):
         return self.content
+
 
 
 
