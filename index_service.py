@@ -6,7 +6,8 @@ from twisted.web.client import Agent
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor, protocol
 from database_api import DatabaseAPI
-import urllib2
+import urllib
+#import urllib2
 import json
 import codecs
 import re
@@ -72,19 +73,20 @@ class IndexService(resource.Resource):
     # Indexes all articles from the content microservice.
     def index_all_articles(self):
         # **** TODO: dont index already indexed articles ****
-        #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
-        host = self.get_service_ip('publish')
+        host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
+        
+        host = self.get_service_ip('publish') + "/list"
 
         yes = set(['Y', 'y', 'Yes', 'yes', 'YES'])
         no = set(['N', 'n', 'No', 'no', 'NO'])
         while True:
             print("Do you want to index all articles at: ") 
-            print("'" + host + "/list'? [y]es/[n]o")
+            print("'" + host + "'? [y]es/[n]o")
             print(">> ", end="")
             user_input = str(raw_input())
             if user_input in yes:
                 agent = Agent(reactor) 
-                d = agent.request("GET", host+"/list")
+                d = agent.request("GET", host)
                 d.addCallback(self._cbRequest)
                 break
             elif user_input in no:
@@ -106,7 +108,6 @@ class IndexService(resource.Resource):
             print("Indexing article ", i+1, " of ", len(article_id_list))
             self.index_article(article_id_list[i]['id'])
         print("Indexing completed")
-
 
     # Indexes page.
     def index_article(self, article_id):
@@ -163,20 +164,19 @@ class Indexer(object):
         # Reading in the stopword file:
         with codecs.open(stopword_file_path, encoding='utf-8') as f:
             for word in f:
-                self.stopwords.add(word.strip())
+                self.stopwords.add(unicode(word.strip()))
 
     # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
     def make_index(self, url, article_id):
         # Retriving the HTML source from the url:
-        
+        '''
         req = urllib2.Request(url)
         response = urllib2.urlopen(req)
         page = response.read() #.decode('UTF-8')
         response.close()
         '''
-        with codecs.open(urllib2.urlopen(urllib2.Request(url).read()), encoding='utf-8') as response:
-            page = response
-        '''
+        page = urllib.urlopen(url).read().decode('utf-8')
+
         # Parseing the HTML:
         parser = Parser()
         parser.feed(page)
