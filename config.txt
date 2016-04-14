@@ -2,10 +2,13 @@
 	# General
 	"stopword_file_path" : "stopwords_norwegian.txt",
 
-	# Database
+	# Postgres database
 	"db_host" : "despina.128.no",
 	"db_port" : "5432",
-	"db_name" : "index",
+	"db_name" : "index", 
 	"db_user" : "index",
-	"db_pass" : ""
+	"db_pass" : "",
+
+	# Parser options
+	"tags_to_ignore" : ['script']	# Add HTML tag names in quotes to list to ignore.
 }
