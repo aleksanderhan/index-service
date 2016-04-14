@@ -5,8 +5,8 @@ import sys
 
 
 def main():
-    args = read_config()
-    index_service = IndexService(**args)
+    kwargs = read_config()
+    index_service = IndexService(kwargs)
 
 def read_config():
     try:

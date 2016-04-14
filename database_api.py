@@ -9,8 +9,8 @@ class DatabaseAPI(object):
 
     conn, cursor = None, None
 
-    def __init__(self, host, port, dbname, user, password):
-        self.conn_string = "host="+host+" port="+port+" dbname="+dbname+" user="+user+" password="+password
+    def __init__(self, db_host, db_port, db_name, db_user, db_pass, **kwargs):
+        self.conn_string = "host="+db_host+" port="+db_port+" dbname="+db_name+" user="+db_user+" password="+db_pass
 
     # Calls to the function resets the database with a clean table.
     def make_tables(self):

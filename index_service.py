@@ -19,11 +19,10 @@ class IndexService(Resource):
 
     isLeaf = True
 
-    def __init__(self, db_host, db_port, db_name, db_user, db_pass, stopword_file_path):
+    def __init__(self, kwargs):
         Resource.__init__(self)
-        self.index = DatabaseAPI(db_host, db_port, db_name, db_user, db_pass)
-        self.indexer = Indexer(stopword_file_path)
-        self.index_on_startup = False
+        self.index = DatabaseAPI(**kwargs)
+        self.indexer = Indexer(**kwargs)
         self.startup_routine()
 
     # Asks the user for some questions at startup.
@@ -31,12 +30,12 @@ class IndexService(Resource):
         indexContent = False
         yes = set(['', 'Y', 'y', 'Yes', 'yes', 'YES'])
         no = set(['N', 'n', 'No', 'no', 'NO'])
+        index_on_startup = False
         print("Type 'help' for help.")
         while True:
             print(">> ", end="")
             user_input = str(raw_input())
-            # Print available commands to user.
-            if user_input == 'help':
+            if user_input == 'help': # Print available commands to user.
                 print()
                 print("         <command>   -       <description>")
                 print("         help        -       Help.")
@@ -45,8 +44,7 @@ class IndexService(Resource):
                 print("         start       -       Start service.")
                 print("         exit        -       Quit.")
                 print()
-            # Clearing tables in the index database.
-            elif user_input == 'reset':
+            elif user_input == 'reset': # Clearing tables in the index database.
                 print("This will delete any existing data and reset the database.")
                 print("Are you sure you want to continue? [Y/n] ", end="")
                 while True:
@@ -58,35 +56,31 @@ class IndexService(Resource):
                     else:
                         print("Abort.")
                         break
-            # Toggle on/off indexing on startup.
-            elif user_input == 'init':
+            elif user_input == 'init': # Toggle on/off indexing on startup.
                 while True:
                     print("Do you want to index all the articles on startup? [Y/n] ", end="") 
                     user_input = str(raw_input())
                     if user_input in yes:
-                        self.index_on_startup = True
+                        index_on_startup = True
                         print("Indexing will begin on start.")
                         break
                     elif user_input in no:
                         print("Indexing will not begin on start.")
-                        self.index_on_startup = False
+                        index_on_startup = False
                         break
                     else:
                         print("Abort.")
                         break
-            # Start indexing service.
-            elif user_input == 'start':
+            elif user_input == 'start': # Start indexing service.
                 print("Starting index service. Use Ctrl + c to quit.")
-                if self.index_on_startup:
+                if index_on_startup:
                     self.index_all_articles()
                 reactor.listenTCP(8001, server.Site(self))
                 reactor.run()
                 break
-            # End program.
-            elif user_input == 'exit':
+            elif user_input == 'exit': # End program.
                 break
-            # Yes is default on return.
-            elif user_input == '':
+            elif user_input == '': # Yes is default on return.
                 continue
             else:
                 print(user_input + ": command not found")
@@ -185,7 +179,8 @@ class Indexer(object):
 
     stopwords = None
 
-    def __init__(self, stopword_file_path):
+    def __init__(self, stopword_file_path, **kwargs):
+        self.kwargs = kwargs
         self.stopwords = set([''])
         # Reading in the stopword file:
         with codecs.open(stopword_file_path, encoding='utf-8') as f:
@@ -198,7 +193,7 @@ class Indexer(object):
         page = urllib.urlopen(url).read().decode('utf-8')
 
         # Parseing the HTML:
-        parser = Parser()
+        parser = Parser(**self.kwargs)
         parser.feed(page)
         content = parser.get_content()
         parser.close()
@@ -218,11 +213,12 @@ class Parser(HTMLParser):
     Basic parser for parsing of html data 
     """
     
-    tags_to_ignore = set(["script"]) # Add HTML tags to the set to ignore the data from that tag.
+    tags_to_ignore = set() # Add HTML tags to the set to ignore the data from that tag.
 
-    def __init__(self):
+    def __init__(self, tags_to_ignore, **kwargs):
         HTMLParser.__init__(self)
         self.content = []
+        self.tags_to_ignore = set(tags_to_ignore)
         self.ignore_tag = False  
 
     # Keeps track of which tags to ignore data from.
