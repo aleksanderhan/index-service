@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 from __future__ import print_function
 from HTMLParser import HTMLParser
 from twisted.web import server
@@ -8,8 +9,10 @@ from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol
 from database_api import DatabaseAPI
-import urllib, json
-import codecs, re
+import urllib, codecs
+import json
+import re
+import sys
 
 
 class IndexService(Resource):
@@ -104,11 +107,14 @@ class IndexService(Resource):
     # Callback for _cbRequest. Indexes the articles in the GET response.
     def _index_content(self, response):
         article_id_list = json.loads(response)['list']
-        for i in range(len(article_id_list)):
-            print("Indexing article ", i+1, " of ", len(article_id_list))
+        total = len(article_id_list)
+        for i in range(total):
+            sys.stdout.write('\r')
+            sys.stdout.write("Indexing article {i} of {total}.".format(i=i+1, total=total))
+            sys.stdout.flush()
             article_id = article_id_list[i]['id']
             self.index_article(article_id)
-        print("Indexing completed")
+        print("\nIndexing completed.")
 
     # Indexes page.
     def index_article(self, article_id):
@@ -232,7 +238,7 @@ class Parser(HTMLParser):
     def handle_data(self, data):
         if self.ignore_tag:
             return
-        words = filter(None, re.split("[ .,:;()!#¤%&=?+`´*_@£$<>^~/\[\]\{\}\-\"\']+", data))
+        words = re.split("[ .,:;()!#¤%&=?+`´*_@£$<>^~/\[\]\{\}\-\"\']+", data)
         for word in words:
             if len(word) > 1:
                 self.content.append(word.lower().strip())
