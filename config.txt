@@ -1,6 +1,7 @@
 {
 	# General
 	"stopword_file_path" : "stopwords_norwegian.txt",
+	"content_module_name" : "publish", # Name of the content module in the DHT.
 
 	# Postgres database
 	"db_host" : "despina.128.no",
@@ -10,5 +11,5 @@
 	"db_pass" : "",
 
 	# Parser options
-	"tags_to_ignore" : ['script']	# Add HTML tag names in quotes to list to ignore.
+	"tags_to_ignore" : ['script'] # Add HTML tag names in quotes to list to ignore.
 }
