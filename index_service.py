@@ -24,6 +24,7 @@ class IndexService(Resource):
 
     def __init__(self, kwargs):
         Resource.__init__(self)
+        self.content_module_name = kwargs['content_module_name']
         self.index = DatabaseAPI(**kwargs)
         self.indexer = Indexer(**kwargs)
         self.startup_routine()
@@ -93,7 +94,7 @@ class IndexService(Resource):
     def index_all_articles(self):
         # **** TODO: dont index already indexed articles ****
         #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
-        host = self.get_service_ip('publish') + "/list"
+        host = self.get_service_ip(self.content_module_name) + "/list"
         agent = Agent(reactor) 
         d = agent.request("GET", host)
         d.addCallback(self._cbRequest)
@@ -118,7 +119,7 @@ class IndexService(Resource):
 
     # Indexes page.
     def index_article(self, article_id):
-        host = self.get_service_ip('publish')
+        host = self.get_service_ip(self.content_module_name)
         url = host+'/article/'+article_id # Articles are found at: http://<publish_module_ip>:<port_num>/article/<article_id> 
         values = self.indexer.make_index(url)
         self.index.upsert(article_id, values)
@@ -159,8 +160,16 @@ class IndexService(Resource):
             return('404')
 
     # Temporary fuction to fetch a services address. Should connect with the dht node somehow.
-    def get_service_ip(self, service_name):
-        return "http://despina.128.no/publish"
+    def get_service_ip(self, service_name):        
+        host = "http://127.0.0.1/" + service_name
+        agent = Agent(reactor) 
+        d = agent.request("GET", host)
+        d.addCallback(self._fetch_ip_from_DHT)
+
+    def _fetch_ip_from_DHT(self, response):
+        finished = Deferred()
+        finished.addCallback(lambda response: json.loads(response))
+        response.deliverBody(RequestClient(finished))
 
 
 class RequestClient(Protocol):
