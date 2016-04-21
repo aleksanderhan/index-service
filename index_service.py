@@ -94,7 +94,7 @@ class IndexService(Resource):
     def index_all_articles(self):
         # **** TODO: dont index already indexed articles ****
         #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
-        publish_host = self.get_service_ip(self.content_module_name)
+        publish_host = self.get_service_ip(self.content_module_name) + "/list"
         agent = Agent(reactor) 
         d = agent.request("GET", publish_host)
         d.addCallback(self._cbRequestIndex)
@@ -107,6 +107,7 @@ class IndexService(Resource):
 
     # Callback for _cbRequest. Indexes the articles in the GET response.
     def _index_content(self, response):
+        print(response)
         article_id_list = json.loads(response)['list']
         total = len(article_id_list)
         for i in range(total):
@@ -119,13 +120,12 @@ class IndexService(Resource):
 
     # Temporary fuction to fetch a services address. Should connect with the dht node somehow.
     def get_service_ip(self, service_name):        
-        return "http://despina.128.no/" + service_name
+        return "http://despina.128.no:32785"
         
     # Indexes page.
     def index_article(self, article_id):
         host = self.get_service_ip(self.content_module_name)
         url = host+'/article/'+article_id # Articles are found at: http://<publish_module_ip>:<port_num>/article/<article_id> 
-        print(url)
         values = self.indexer.make_index(url)
         self.index.upsert(article_id, values)
 
