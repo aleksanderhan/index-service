@@ -94,13 +94,13 @@ class IndexService(Resource):
     def index_all_articles(self):
         # **** TODO: dont index already indexed articles ****
         #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
-        host = self.get_service_ip(self.content_module_name) + "/list"
+        publish_host = self.get_service_ip(self.content_module_name)
         agent = Agent(reactor) 
-        d = agent.request("GET", host)
-        d.addCallback(self._cbRequest)
+        d = agent.request("GET", publish_host)
+        d.addCallback(self._cbRequestIndex)
 
     # Callback request.
-    def _cbRequest(self, response):
+    def _cbRequestIndex(self, response):
         finished = Deferred()
         finished.addCallback(self._index_content)
         response.deliverBody(RequestClient(finished))
@@ -117,10 +117,15 @@ class IndexService(Resource):
             self.index_article(article_id)
         print("\nIndexing completed.")
 
+    # Temporary fuction to fetch a services address. Should connect with the dht node somehow.
+    def get_service_ip(self, service_name):        
+        return "http://despina.128.no/" + service_name
+        
     # Indexes page.
     def index_article(self, article_id):
         host = self.get_service_ip(self.content_module_name)
         url = host+'/article/'+article_id # Articles are found at: http://<publish_module_ip>:<port_num>/article/<article_id> 
+        print(url)
         values = self.indexer.make_index(url)
         self.index.upsert(article_id, values)
 
@@ -158,18 +163,6 @@ class IndexService(Resource):
             return('ok!')
         else:
             return('404')
-
-    # Temporary fuction to fetch a services address. Should connect with the dht node somehow.
-    def get_service_ip(self, service_name):        
-        host = "http://127.0.0.1/" + service_name
-        agent = Agent(reactor) 
-        d = agent.request("GET", host)
-        d.addCallback(self._fetch_ip_from_DHT)
-
-    def _fetch_ip_from_DHT(self, response):
-        finished = Deferred()
-        finished.addCallback(lambda response: json.loads(response))
-        response.deliverBody(RequestClient(finished))
 
 
 class RequestClient(Protocol):
@@ -223,7 +216,7 @@ class Indexer(object):
         return values
 
 
-class Parser(HTMLParser):	
+class Parser(HTMLParser):   
     """ 
     Basic parser for parsing of html data 
     """
