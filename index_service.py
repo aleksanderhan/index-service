@@ -25,9 +25,20 @@ class IndexService(Resource):
     def __init__(self, kwargs):
         Resource.__init__(self)
         self.content_module_name = kwargs['content_module_name']
+        self.is_daemon = kwargs['daemon']
         self.index = DatabaseAPI(**kwargs)
         self.indexer = Indexer(**kwargs)
-        self.startup_routine()
+
+        if not self.is_daemon:
+            self.startup_routine()
+        else:
+            self.run_as_daemon(8001)
+
+    def run_as_daemon(self, port):
+        self.index_all_articles()
+        print("Starting the indexer as a daemon listening to port %d..." % port)
+        reactor.listenTCP(port, server.Site(self))
+        reactor.run()
 
     # Asks the user for some questions at startup.
     def startup_routine(self):

@@ -11,5 +11,6 @@
 	"db_pass" : "",
 
 	# Parser options
-	"tags_to_ignore" : ['script'] # Add HTML tag names in quotes to list to ignore.
+	"tags_to_ignore" : ['script'], # Add HTML tag names in quotes to list to ignore.
+	"daemon" : 0 # Should the indexer be run as a daemon?
 }
