@@ -10,7 +10,7 @@ class DatabaseAPI(object):
 
     conn, cursor = None, None
 
-    def __init__(self, db_host, db_port, db_name, db_user, db_pass, **kwargs):
+    def __init__(self, db_host, db_port, db_name, db_user, db_pass):
         self.conn_string = "host="+db_host+" port="+db_port+" dbname="+db_name+" user="+db_user+" password="+db_pass
 
     # Calls to the function resets the database with a clean table.
