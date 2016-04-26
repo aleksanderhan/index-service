@@ -9,6 +9,7 @@ from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol
 from database_api import DatabaseAPI
+import config
 import urllib, codecs
 import json
 import re
@@ -22,12 +23,13 @@ class IndexService(Resource):
 
     isLeaf = True
 
-    def __init__(self, kwargs):
+    def __init__(self):
         Resource.__init__(self)
-        self.content_module_name = kwargs['content_module_name']
-        self.is_daemon = kwargs['daemon']
-        self.index = DatabaseAPI(**kwargs)
-        self.indexer = Indexer(**kwargs)
+        self.content_module_name = config.content_module_name
+        self.is_daemon = config.run_as_daemon
+        self.index = DatabaseAPI(config.db_host, config.db_port,
+                                 config.db_name, config.db_user, config.db_pass)
+        self.indexer = Indexer(config.stopword_file_path)
 
         if not self.is_daemon:
             self.startup_routine()
@@ -198,8 +200,7 @@ class Indexer(object):
 
     stopwords = None
 
-    def __init__(self, stopword_file_path, **kwargs):
-        self.kwargs = kwargs
+    def __init__(self, stopword_file_path):
         self.stopwords = set([''])
         # Reading in the stopword file:
         with codecs.open(stopword_file_path, encoding='utf-8') as f:
@@ -212,7 +213,7 @@ class Indexer(object):
         page = urllib.urlopen(url).read().decode('utf-8')
 
         # Parseing the HTML:
-        parser = Parser(**self.kwargs)
+        parser = Parser(config.tags_to_ignore)
         parser.feed(page)
         content = parser.get_content()
         parser.close()
@@ -234,7 +235,7 @@ class Parser(HTMLParser):
     
     tags_to_ignore = set() # Add HTML tags to the set to ignore the data from that tag.
 
-    def __init__(self, tags_to_ignore, **kwargs):
+    def __init__(self, tags_to_ignore):
         HTMLParser.__init__(self)
         self.content = []
         self.tags_to_ignore = set(tags_to_ignore)
@@ -260,6 +261,5 @@ class Parser(HTMLParser):
     def get_content(self):
         return self.content
 
-
-
-
+if __name__ == '__main__':
+    index_service = IndexService()
