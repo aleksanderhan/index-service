@@ -37,6 +37,7 @@ class IndexService(Resource):
             self.run_as_daemon(8001)
 
     def run_as_daemon(self, port):
+        self.index.make_tables()
         self.index_all_articles()
         print("Starting the indexer as a daemon listening to port %d..." % port)
         reactor.listenTCP(port, server.Site(self))
