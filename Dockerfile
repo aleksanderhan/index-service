@@ -12,6 +12,7 @@ WORKDIR ${BASE_DIR}
 
 RUN virtualenv ${BASE_DIR}/venv
 ENV PATH ${BASE_DIR}/venv/bin:$PATH
+RUN mv ${BASE_DIR}/config/local.py.example ${BASE_DIR}/config/local.py
 
 RUN pip install -r requirements.txt
 RUN rm -rf /run && mkdir -p /run
