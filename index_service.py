@@ -33,6 +33,8 @@ class IndexService(Resource):
 
         if not self.is_daemon:
             self.startup_routine()
+            reactor.listenTCP(config.server_port, server.Site(self))
+            reactor.run()
         else:
             self.run_as_daemon(config.server_port)
 
@@ -113,6 +115,7 @@ class IndexService(Resource):
         d = agent.request("GET", publish_host)
         d.addCallback(self._cbRequestIndex)
 
+
     # Callback request.
     def _cbRequestIndex(self, response):
         finished = Deferred()
@@ -121,7 +124,6 @@ class IndexService(Resource):
 
     # Callback for _cbRequest. Indexes the articles in the GET response.
     def _index_content(self, response):
-        print(response)
         article_id_list = json.loads(response)['list']
         total = len(article_id_list)
         for i in range(total):
@@ -134,7 +136,7 @@ class IndexService(Resource):
 
     # Temporary fuction to fetch a services address. Should connect with the dht node somehow.
     def get_service_ip(self, service_name):        
-        return "http://despina.128.no:32785"
+        return "http://despina.128.no/publish"
         
     # Indexes page.
     def index_article(self, article_id):
