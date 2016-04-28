@@ -9,6 +9,7 @@ from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol
 from database_api import DatabaseAPI
+import requests
 import config
 import urllib, codecs
 import json
@@ -25,7 +26,6 @@ class IndexService(Resource):
 
     def __init__(self):
         Resource.__init__(self)
-        self.content_module_name = config.content_module_name
         self.is_daemon = config.run_as_daemon
         self.index = DatabaseAPI(config.db_host, config.db_port,
                                  config.db_name, config.db_user, config.db_pass)
@@ -108,9 +108,7 @@ class IndexService(Resource):
 
     # Indexes all articles from the content microservice.
     def index_all_articles(self):
-        # **** TODO: dont index already indexed articles ****
-        #host = 'http://127.0.0.1:8002'  # content host - **** TODO: fetched from dht node network ****
-        publish_host = self.get_service_ip(self.content_module_name) + "/list"
+        publish_host = self.get_service_ip(config.content_module_name) + "/list"
         agent = Agent(reactor) 
         d = agent.request("GET", publish_host)
         d.addCallback(self._cbRequestIndex)
@@ -135,12 +133,13 @@ class IndexService(Resource):
         print("\nIndexing completed.")
 
     # Temporary fuction to fetch a services address. Should connect with the dht node somehow.
-    def get_service_ip(self, service_name):        
-        return "http://despina.128.no/publish"
+    def get_service_ip(self, service_name):   
+        r = requests.get(config.comm_host+service_name)
+        return r.json() 
         
     # Indexes page.
     def index_article(self, article_id):
-        host = self.get_service_ip(self.content_module_name)
+        host = self.get_service_ip(config.content_module_name)
         url = host+'/article/'+article_id # Articles are found at: http://<publish_module_ip>:<port_num>/article/<article_id> 
         values = self.indexer.make_index(url)
         self.index.upsert(article_id, values)
