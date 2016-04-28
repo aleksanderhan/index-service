@@ -6,6 +6,8 @@ db_port = "5432"
 db_name = "index"
 db_user = "index"
 
+server_port = 80
+
 db_pass = os.environ.get('DB_PASS')
 
 if not db_pass:

@@ -34,7 +34,7 @@ class IndexService(Resource):
         if not self.is_daemon:
             self.startup_routine()
         else:
-            self.run_as_daemon(8001)
+            self.run_as_daemon(config.server_port)
 
     def run_as_daemon(self, port):
         self.index.make_tables()
@@ -93,7 +93,7 @@ class IndexService(Resource):
                 print("Starting index service. Use Ctrl + c to quit.")
                 if index_on_startup:
                     self.index_all_articles()
-                reactor.listenTCP(8001, server.Site(self))
+                reactor.listenTCP(config.server_port, server.Site(self))
                 reactor.run()
                 break
             elif user_input == 'exit': # End program.

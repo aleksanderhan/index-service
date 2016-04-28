@@ -9,6 +9,8 @@ db_name = "index"
 db_user = "index"
 db_pass = ""
 
+server_port = 8001
+
 run_as_daemon = False # Should the indexer be run as a daemon?
 
 # Parser options
