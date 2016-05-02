@@ -23,6 +23,7 @@ class IndexService(Resource):
     """
 
     isLeaf = True
+    allowedMethods = ("GET","POST")
 
     def __init__(self):
         Resource.__init__(self)
@@ -33,8 +34,6 @@ class IndexService(Resource):
 
         if not self.is_daemon:
             self.startup_routine()
-            reactor.listenTCP(config.server_port, server.Site(self))
-            reactor.run()
         else:
             self.run_as_daemon(config.server_port)
 
@@ -108,11 +107,13 @@ class IndexService(Resource):
 
     # Indexes all articles from the content microservice.
     def index_all_articles(self):
-        publish_host = self.get_service_ip(config.content_module_name) + "/list"
-        agent = Agent(reactor) 
-        d = agent.request("GET", publish_host)
+        publish_host = self.get_service_ip(config.content_module_name)
+        #publish_host = "http://despina.128.no/publish" # hardcoded publish host
+        publish_resource = publish_host + "/list"
+        publish_resource = publish_resource.encode('ascii')
+        agent = Agent(reactor)
+        d = agent.request("GET", publish_resource)
         d.addCallback(self._cbRequestIndex)
-
 
     # Callback request.
     def _cbRequestIndex(self, response):
@@ -140,7 +141,8 @@ class IndexService(Resource):
     # Indexes page.
     def index_article(self, article_id):
         host = self.get_service_ip(config.content_module_name)
-        url = host+'/article/'+article_id # Articles are found at: http://<publish_module_ip>:<port_num>/article/<article_id> 
+        #host = "http://despina.128.no/publish" # hardcoded publish host
+        url = host + "/article/" + article_id # Articles are found at: http://<publish_module_ip>:<port_num>/article/<article_id> 
         values = self.indexer.make_index(url)
         self.index.upsert(article_id, values)
 

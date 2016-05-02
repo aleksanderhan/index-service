@@ -7,7 +7,7 @@ class ContentTestServer(resource.Resource):
     isLeaf = True
 
     def render_GET(self, request):
-    	print("request recieved")
+        print("request recieved")
         return json.dumps({"list": [{"id": "http://instabart.no/", "title":"instabart"}]})
 
 
