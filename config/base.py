@@ -8,7 +8,7 @@ db_host = "despina.128.no"
 db_port = "5432"
 db_name = "index"
 db_user = "index"
-db_pass = ""
+db_pass = "F3qwG21C"
 
 server_port = 8001
 

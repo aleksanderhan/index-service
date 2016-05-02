@@ -142,7 +142,7 @@ class IndexService(Resource):
     def index_article(self, article_id):
         host = self.get_service_ip(config.content_module_name)
         #host = "http://despina.128.no/publish" # hardcoded publish host
-        url = host + "/article/" + article_id # Articles are found at: http://<publish_module_ip>:<port_num>/article/<article_id> 
+        url = host + "/article/" + article_id # Articles are found at: http://<publish_service_host>/article/<article_id> 
         values = self.indexer.make_index(url)
         self.index.upsert(article_id, values)
 
@@ -169,15 +169,15 @@ class IndexService(Resource):
             article_id = d['articleID']
             self.index.remove(article_id)
             self.index_article(article_id)
-            return 'thanks!'
+            return '200 - thanks!'
         elif d['task'] == 'publishedArticle':
             article_id = d['articleID']
             self.index.upsert(article_id)
-            return 'thanks!'
+            return '200 - thanks!'
         elif d['task'] == 'removedArticle':
             article_id = d['articleID']
             self.index.remove(article_id)
-            return('ok!')
+            return('200 - ok!')
         else:
             return('404')
 
