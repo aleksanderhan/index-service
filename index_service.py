@@ -136,7 +136,12 @@ class IndexService(Resource):
     # Fetches the publish host address from the communication backend
     def get_service_ip(self, service_name):   
         r = requests.get(config.comm_host+service_name)
-        return r.json() 
+        url = r.json()
+
+        if url:
+            url = "http://" + url
+
+        return url
         
     # Indexes page.
     def index_article(self, article_id):
