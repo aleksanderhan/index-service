@@ -1,5 +1,5 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 from __future__ import print_function
 from HTMLParser import HTMLParser
 from twisted.web import server
@@ -19,11 +19,10 @@ import sys
 
 class IndexService(Resource):
     """ 
-    Index microservice class 
+    Index microservice class.
     """
 
     isLeaf = True
-    allowedMethods = ("GET","POST")
 
     def __init__(self):
         Resource.__init__(self)
@@ -133,7 +132,7 @@ class IndexService(Resource):
             self.index_article(article_id)
         print("\nIndexing completed.")
 
-    # Temporary fuction to fetch a services address. Should connect with the dht node somehow.
+    # Fetches the publish host address from the communication backend
     def get_service_ip(self, service_name):   
         r = requests.get(config.comm_host+service_name)
         return r.json() 
@@ -149,31 +148,37 @@ class IndexService(Resource):
     # Handles POST requests from the other microservices.
     def render_POST(self, request):
         d = json.load(request.content)
+        # Returns a list of suggestions of words with given word root:
         if d['task'] == 'getSuggestions': # JSON format: {'task' : 'getSuggestions', 'word' : str}
             word_root = d['word']
             data = self.index.query("SELECT DISTINCT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
             response = {"suggestions" : [t[0] for t in data]}
             return json.dumps(response)
+        # Returns all articles where given word occurs:
         elif d['task'] == 'getArticles': # JSON format: {'task' : 'getArticles', 'word' : str}
             word = d['word']
             data = self.index.query("SELECT articleid FROM wordfreq WHERE word = %s", (word,))
             response = {"articleID" : [t[0] for t in data]}
             return json.dumps(response)
+        # Returns a list of all words and the total number of occurences of the words:
         elif d['task'] == 'getFrequencyList': # JSON format: {'task' : 'getFrequencyList'}
             data = self.index.query("SELECT word, sum(frequency) FROM wordfreq GROUP BY word")
             response = {}
             for value in data:
                 response[value[0]] = value[1]
             return json.dumps(response)
-        elif d['task'] == 'updatedArticle':
+        # Updates the index of an article with given id:
+        elif d['task'] == 'updatedArticle': 
             article_id = d['articleID']
             self.index.remove(article_id)
             self.index_article(article_id)
             return '200 - thanks!'
+        # Indexes published article with given id:
         elif d['task'] == 'publishedArticle':
             article_id = d['articleID']
             self.index.upsert(article_id)
             return '200 - thanks!'
+        # Removes index of article with given id:
         elif d['task'] == 'removedArticle':
             article_id = d['articleID']
             self.index.remove(article_id)
@@ -184,7 +189,7 @@ class IndexService(Resource):
 
 class RequestClient(Protocol):
     """ 
-    Request Client 
+    Request Client Protocol.
     """
 
     def __init__(self, finished):
@@ -199,33 +204,33 @@ class RequestClient(Protocol):
    
 class Indexer(object):
     """ 
-    Basic indexer of HTML pages 
+    Basic indexer of HTML pages.
     """
 
     stopwords = None
 
     def __init__(self, stopword_file_path):
         self.stopwords = set([''])
-        # Reading in the stopword file:
+        # Reading in the stopword file.
         with codecs.open(stopword_file_path, encoding='utf-8') as f:
             for word in f:
                 self.stopwords.add(unicode(word.strip()))
 
     # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
     def make_index(self, url):
-        # Retriving the HTML source from the url:
+        # Retriving the HTML source from the url.
         page = urllib.urlopen(url).read().decode('utf-8')
 
-        # Parseing the HTML:
+        # Parseing the HTML.
         parser = Parser(config.tags_to_ignore)
         parser.feed(page)
         content = parser.get_content()
         parser.close()
 
-        # Removing stopwords:
+        # Removing stopwords.
         unique_words = set(content).difference(self.stopwords)
 
-        # Making a list of tuples: (word, wordfreq):
+        # Making a list of tuples: (word, wordfreq).
         values = []
         for word in unique_words:
             values.append((word, content.count(word)))
@@ -264,6 +269,7 @@ class Parser(HTMLParser):
     # Get method for content.
     def get_content(self):
         return self.content
+
 
 if __name__ == '__main__':
     index_service = IndexService()
