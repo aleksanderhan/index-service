@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 from __future__ import print_function
 from HTMLParser import HTMLParser
 from twisted.web import server
@@ -211,7 +212,6 @@ class Indexer(object):
 
     def __init__(self, stopword_file_path):
         self.stopwords = set([''])
-        # Reading in the stopword file.
         with codecs.open(stopword_file_path, encoding='utf-8') as f:
             for word in f:
                 self.stopwords.add(unicode(word.strip()))
@@ -239,7 +239,7 @@ class Indexer(object):
 
 class Parser(HTMLParser):   
     """ 
-    Basic parser for parsing of html data 
+    Basic parser for parsing of html data.
     """
     
     tags_to_ignore = set() # Add HTML tags to the set to ignore the data from that tag.

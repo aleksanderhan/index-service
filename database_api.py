@@ -20,8 +20,8 @@ class DatabaseAPI(object):
         self.cursor.execute("CREATE TABLE wordFreq (articleid VARCHAR, word VARCHAR, frequency INTEGER, PRIMARY KEY (articleid, word))")
         self._close_connection()
 
-    # Fuction for custom queries against the database. Takes a query string and if present a tuple with values and executes
-    # the query, and returns the data.
+    # Fuction for custom queries against the database. 
+    # Takes a query string and if present a tuple with values and executes the query, and returns the data.
     def query(self, query, values = None):
         self._make_connection()
         self.cursor.execute(query, values)
