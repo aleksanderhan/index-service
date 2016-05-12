@@ -17,4 +17,8 @@ RUN mv ${BASE_DIR}/config/local.py.example ${BASE_DIR}/config/local.py
 RUN pip install -r requirements.txt
 RUN rm -rf /run && mkdir -p /run
 
+ENV SERVICE_NAME indexer
+ENV POSTGRES_USER index
+ENV POSTGRES_PASSWORD mysecretpassword
+
 EXPOSE 80
