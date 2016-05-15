@@ -39,6 +39,7 @@ class IndexService(Resource):
 
     def run_as_daemon(self, port):
         self.index.make_tables("wordfreq", {"articleid" : "VARCHAR", "word" : "VARCHAR", "frequency" : "INTEGER"}, "(articleid, word)")
+        host = self.get_service_ip(config.content_module_name)
         self.index_all_articles()
         print("Starting the indexer as a daemon listening to port %d..." % port)
         reactor.listenTCP(port, server.Site(self))
@@ -93,7 +94,8 @@ class IndexService(Resource):
             elif user_input == 'start': # Start indexing service.
                 print("Starting index service. Use Ctrl + c to quit.")
                 if index_on_startup:
-                    self.index_all_articles()
+                    host = self.get_service_ip(config.content_module_name)
+                    self.index_all_articles(host)
                 reactor.listenTCP(config.server_port, server.Site(self))
                 reactor.run()
                 break
@@ -106,10 +108,8 @@ class IndexService(Resource):
                 continue
 
     # Indexes all articles from the content microservice.
-    def index_all_articles(self):
-        publish_host = self.get_service_ip(config.content_module_name)
-        #publish_host = "http://despina.128.no/publish" # hardcoded publish host
-        publish_resource = publish_host + "/list"
+    def index_all_articles(self, host):
+        publish_resource = host + "/list"
         publish_resource = publish_resource.encode('ascii')
         agent = Agent(reactor)
         d = agent.request("GET", publish_resource)
@@ -133,13 +133,15 @@ class IndexService(Resource):
             self.index_article(article_id)
         print("\nIndexing completed.")
 
-    # Fetches the publish host address from the communication backend
+    # Fetches the publish host address from the communication backend.
     def get_service_ip(self, service_name):   
-        r = requests.get(config.comm_host+service_name)
-        url = r.json()
-
-        if url:
-            url = "http://" + url
+        try:
+            r = requests.get(config.comm_host+service_name)
+            url = r.json()
+            if url:
+                url = "http://" + url
+        except ValueError:
+            url = 'http://despina.128.no/publish' # Hardcoded url for testing purposes.
         return url
         
     # Indexes page.
@@ -244,13 +246,11 @@ class Parser(HTMLParser):
     """ 
     Basic parser for parsing of html data.
     """
-    
-    tags_to_ignore = set() # Add HTML tags to the set to ignore the data from that tag.
 
     def __init__(self, tags_to_ignore):
         HTMLParser.__init__(self)
         self.content = []
-        self.tags_to_ignore = set(tags_to_ignore)
+        self.tags_to_ignore = set(tags_to_ignore) # Add HTML tags to the set to ignore the data from that tag.
         self.ignore_tag = False  
 
     # Keeps track of which tags to ignore data from.
