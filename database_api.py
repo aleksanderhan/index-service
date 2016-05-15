@@ -49,10 +49,10 @@ class DatabaseAPI(object):
             print("no values to insert")
         self._close_connection()
 
-    # Removes item from column in table_name.
-    def remove(self, table_name, column, item): # ex. usage: remove("wordfreq", "articleid", <item>)
+    # Removes value from column in table_name.
+    def remove(self, table_name, column, value): # ex. usage: remove("wordfreq", "articleid", <value>)
         self._make_connection()
-        self.cursor.execute("DELETE FROM {table_name} WHERE ({column}) = (%s)".format(table_name=table_name, column=column), (item,))
+        self.cursor.execute("DELETE FROM {table_name} WHERE ({column}) = (%s)".format(table_name=table_name, column=column), (value,))
         self._close_connection()
       
     # Starts psycopg2 connection to the postgres database. Must be run before any queries, inserts etc is to be done.
