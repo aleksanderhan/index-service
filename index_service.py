@@ -32,9 +32,7 @@ class IndexService(Resource):
                                  config.db_name, config.db_user, config.db_pass)
         self.indexer = Indexer(config.stopword_file_path)
 
-        if not self.is_daemon:
-            self.startup_routine()
-        else:
+        if self.is_daemon:
             self.run_as_daemon(config.server_port)
 
     def run_as_daemon(self, port):
@@ -213,8 +211,6 @@ class Indexer(object):
     Basic indexer of HTML pages.
     """
 
-    stopwords = None
-
     def __init__(self, stopword_file_path):
         self.stopwords = set([''])
         with codecs.open(stopword_file_path, encoding='utf-8') as f:
@@ -276,3 +272,4 @@ class Parser(HTMLParser):
 
 if __name__ == '__main__':
     index_service = IndexService()
+    index_service.startup_routine()
