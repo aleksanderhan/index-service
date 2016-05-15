@@ -14,13 +14,17 @@ class DatabaseAPI(object):
         self.conn_string = "host="+db_host+" port="+db_port+" dbname="+db_name+" user="+db_user+" password="+db_pass
 
     # Calls to the function resets the database with a clean table.
-    def make_tables(self):
+    def make_tables(self, table_name, columns, primary_key):
         self._make_connection()
-        self.cursor.execute("DROP TABLE IF EXISTS wordfreq")
-        self.cursor.execute("CREATE TABLE wordFreq (articleid VARCHAR, word VARCHAR, frequency INTEGER, PRIMARY KEY (articleid, word))")
+        self.cursor.execute("DROP TABLE IF EXISTS {table_name}".format(table_name = table_name))
+        column_str = ""
+        for k, v in columns.items():
+            column_str += k + " " + v + ", "
+        create_table_str = "CREATE TABLE {table_name} ({columns} PRIMARY KEY {primary_key})".format(table_name=table_name, columns=column_str, primary_key=primary_key)
+        self.cursor.execute(create_table_str)
         self._close_connection()
 
-    # Fuction for custom queries against the database. 
+    # Function for custom queries against the database. 
     # Takes a query string and if present a tuple with values and executes the query, and returns the data.
     def query(self, query, values = None):
         self._make_connection()
@@ -29,24 +33,26 @@ class DatabaseAPI(object):
         self._close_connection()
         return data
 
-    # Inserts a list, values, with tuples of values into the database. On conflict update.
-    def upsert(self, article_id, values):
+    # Upserts a lits of tuples with word and frequency values into table_name.
+    def upsert(self, table_name, article_id, values):
         self._make_connection()
         if values:
             for value in values:
                 word, freq = value[0], value[1]
-                insert_sql = self.cursor.mogrify("INSERT INTO wordfreq (articleid, word, frequency) SELECT %s, %s, %s", (article_id, word, freq))
-                update_sql = self.cursor.mogrify("UPDATE wordfreq SET frequency = %s WHERE (articleid, word) = (%s, %s)", (freq, article_id, word))
+                insert_sql = self.cursor.mogrify("INSERT INTO {table_name} (articleid, word, frequency) SELECT %s, %s, %s".format(table_name=table_name), 
+                    (article_id, word, freq))
+                update_sql = self.cursor.mogrify("UPDATE {table_name} SET frequency = %s WHERE (articleid, word) = (%s, %s)".format(table_name=table_name), 
+                    (freq, article_id, word))
                 upsert_sql = "WITH upsert AS ("+update_sql+" RETURNING *) "+insert_sql+" WHERE NOT EXISTS (SELECT * FROM upsert)"
                 self.cursor.execute(upsert_sql)
         else:
             print("no values to insert")
         self._close_connection()
 
-    # Removes values with 'url'.
-    def remove(self, article_id):
+    # Removes item from column in table_name.
+    def remove(self, table_name, column, item): # ex. usage: remove("wordfreq", "articleid", <item>)
         self._make_connection()
-        self.cursor.execute("DELETE FROM wordfreq WHERE (articleid) = (%s)", (article_id,))
+        self.cursor.execute("DELETE FROM {table_name} WHERE ({column}) = (%s)".format(table_name=table_name, column=column), (item,))
         self._close_connection()
       
     # Starts psycopg2 connection to the postgres database. Must be run before any queries, inserts etc is to be done.

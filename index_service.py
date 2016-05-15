@@ -38,7 +38,7 @@ class IndexService(Resource):
             self.run_as_daemon(config.server_port)
 
     def run_as_daemon(self, port):
-        self.index.make_tables()
+        self.index.make_tables("wordfreq", {"articleid" : "VARCHAR", "word" : "VARCHAR", "frequency" : "INTEGER"}, "(articleid, word)")
         self.index_all_articles()
         print("Starting the indexer as a daemon listening to port %d..." % port)
         reactor.listenTCP(port, server.Site(self))
@@ -69,7 +69,7 @@ class IndexService(Resource):
                 while True:
                     user_input = str(raw_input())
                     if user_input in yes:
-                        self.index.make_tables()
+                        self.index.make_tables("wordfreq", {"articleid" : "VARCHAR", "word" : "VARCHAR", "frequency" : "INTEGER"}, "(articleid, word)")
                         print("Reset.")
                         break
                     else:
@@ -140,16 +140,14 @@ class IndexService(Resource):
 
         if url:
             url = "http://" + url
-
         return url
         
     # Indexes page.
     def index_article(self, article_id):
         host = self.get_service_ip(config.content_module_name)
-        #host = "http://despina.128.no/publish" # hardcoded publish host
-        url = host + "/article/" + article_id # Articles are found at: http://<publish_service_host>/article/<article_id> 
+        url = host + "/article/" + article_id # Articles should be found at: http://<publish_service_host>/article/<article_id> 
         values = self.indexer.make_index(url)
-        self.index.upsert(article_id, values)
+        self.index.upsert('wordfreq', article_id, values)
 
     # Handles POST requests from the other microservices.
     def render_POST(self, request):
@@ -182,7 +180,7 @@ class IndexService(Resource):
         # Indexes published article with given id:
         elif d['task'] == 'publishedArticle':
             article_id = d['articleID']
-            self.index.upsert(article_id)
+            self.index_article(article_id)
             return '200 - thanks!'
         # Removes index of article with given id:
         elif d['task'] == 'removedArticle':
@@ -221,7 +219,7 @@ class Indexer(object):
             for word in f:
                 self.stopwords.add(unicode(word.strip()))
 
-    # Takes an url as arguments and indexes the article at that url. Returns a list of tuple values.
+    # Takes an url as arguments and indexes the HTML page at that url. Returns a list of tuple values.
     def make_index(self, url):
         # Retriving the HTML source from the url.
         page = urllib.urlopen(url).read().decode('utf-8')
