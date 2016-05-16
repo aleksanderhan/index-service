@@ -218,12 +218,12 @@ class Indexer(object):
                 self.stopwords.add(unicode(word.strip()))
 
     # Takes an url as arguments and indexes the HTML page at that url. Returns a list of tuple values.
-    def make_index(self, url):
+    def make_index(self, url, tags_to_ignore=config.tags_to_ignore):
         # Retriving the HTML source from the url.
         page = urllib.urlopen(url).read().decode('utf-8')
 
         # Parseing the HTML.
-        parser = Parser(config.tags_to_ignore)
+        parser = Parser(tags_to_ignore)
         parser.feed(page)
         content = parser.get_content()
         parser.close()
