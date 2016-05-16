@@ -28,7 +28,7 @@ class IndexService(Resource):
     def __init__(self):
         Resource.__init__(self)
         self.is_daemon = config.run_as_daemon
-        self.index = DatabaseAPI(config.db_host, config.db_port,
+        self.index_database = DatabaseAPI(config.db_host, config.db_port,
                                  config.db_name, config.db_user, config.db_pass)
         self.indexer = Indexer(config.stopword_file_path)
 
@@ -36,9 +36,9 @@ class IndexService(Resource):
             self.run_as_daemon(config.server_port)
 
     def run_as_daemon(self, port):
-        self.index.make_tables("wordfreq", {"articleid" : "VARCHAR", "word" : "VARCHAR", "frequency" : "INTEGER"}, "(articleid, word)")
+        self.index_database.make_tables("wordfreq", {"articleid" : "VARCHAR", "word" : "VARCHAR", "frequency" : "INTEGER"}, "(articleid, word)")
         host = self.get_service_ip(config.content_module_name)
-        self.index_all_articles()
+        self.index_all_articles(host)
         print("Starting the indexer as a daemon listening to port %d..." % port)
         reactor.listenTCP(port, server.Site(self))
         reactor.run()
@@ -68,7 +68,7 @@ class IndexService(Resource):
                 while True:
                     user_input = str(raw_input())
                     if user_input in yes:
-                        self.index.make_tables("wordfreq", {"articleid" : "VARCHAR", "word" : "VARCHAR", "frequency" : "INTEGER"}, "(articleid, word)")
+                        self.index_database.make_tables("wordfreq", {"articleid" : "VARCHAR", "word" : "VARCHAR", "frequency" : "INTEGER"}, "(articleid, word)")
                         print("Reset.")
                         break
                     else:
@@ -105,23 +105,10 @@ class IndexService(Resource):
                 print(user_input + ": command not found")
                 continue
 
-    # Indexes all articles from the content microservice.
     def index_all_articles(self, host):
-        publish_resource = host + "/list"
-        publish_resource = publish_resource.encode('ascii')
-        agent = Agent(reactor)
-        d = agent.request("GET", publish_resource)
-        d.addCallback(self._cbRequestIndex)
-
-    # Callback request.
-    def _cbRequestIndex(self, response):
-        finished = Deferred()
-        finished.addCallback(self._index_content)
-        response.deliverBody(RequestClient(finished))
-
-    # Callback for _cbRequest. Indexes the articles in the GET response.
-    def _index_content(self, response):
-        article_id_list = json.loads(response)['list']
+        publish_article_list = host + "/list"
+        r = requests.get(publish_article_list)
+        article_id_list = r.json()['list']
         total = len(article_id_list)
         for i in range(total):
             sys.stdout.write('\r')
@@ -132,13 +119,14 @@ class IndexService(Resource):
         print("\nIndexing completed.")
 
     # Fetches the publish host address from the communication backend.
-    def get_service_ip(self, service_name):   
+    def get_service_ip(self, service_name):
         try:
             r = requests.get(config.comm_host+service_name)
             url = r.json()
             if url:
                 url = "http://" + url
-        except ValueError:
+        except:
+            print('\nUsing hardcoded value for publish host ip.')
             url = 'http://despina.128.no/publish' # Hardcoded url for testing purposes.
         return url
         
@@ -147,7 +135,7 @@ class IndexService(Resource):
         host = self.get_service_ip(config.content_module_name)
         url = host + "/article/" + article_id # Articles should be found at: http://<publish_service_host>/article/<article_id> 
         values = self.indexer.make_index(url)
-        self.index.upsert('wordfreq', article_id, values)
+        self.index_database.upsert('wordfreq', article_id, values)
 
     # Handles POST requests from the other microservices.
     def render_POST(self, request):
@@ -155,18 +143,18 @@ class IndexService(Resource):
         # Returns a list of suggestions of words with given word root:
         if d['task'] == 'getSuggestions': # JSON format: {'task' : 'getSuggestions', 'word' : str}
             word_root = d['word']
-            data = self.index.query("SELECT DISTINCT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
+            data = self.index_database.query("SELECT DISTINCT word FROM wordfreq WHERE word LIKE %s", (word_root+'%',))
             response = {"suggestions" : [t[0] for t in data]}
             return json.dumps(response)
         # Returns all articles where given word occurs:
         elif d['task'] == 'getArticles': # JSON format: {'task' : 'getArticles', 'word' : str}
             word = d['word']
-            data = self.index.query("SELECT articleid FROM wordfreq WHERE word = %s", (word,))
+            data = self.index_database.query("SELECT articleid FROM wordfreq WHERE word = %s", (word,))
             response = {"articleID" : [t[0] for t in data]}
             return json.dumps(response)
         # Returns a list of all words and the total number of occurences of the words:
         elif d['task'] == 'getFrequencyList': # JSON format: {'task' : 'getFrequencyList'}
-            data = self.index.query("SELECT word, sum(frequency) FROM wordfreq GROUP BY word")
+            data = self.index_database.query("SELECT word, sum(frequency) FROM wordfreq GROUP BY word")
             response = {}
             for value in data:
                 response[value[0]] = value[1]
@@ -185,7 +173,7 @@ class IndexService(Resource):
         # Removes index of article with given id:
         elif d['task'] == 'removedArticle':
             article_id = d['articleID']
-            self.index.remove(article_id)
+            self.index_database.remove(article_id)
             return('200 - ok!')
         else:
             return('404')
