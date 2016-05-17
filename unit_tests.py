@@ -148,7 +148,7 @@ class Indexer_test:
 
     # Tests if the Indexer makes the correct index for sample page.
     def test1(self):
-        print('Test 1:', end='')
+        print('Test 1: ', end='')
         url = 'http://folk.ntnu.no/alekh/it2805/index.html'
         index = dict(self.indexer.make_index(url))
         correct_result = {'it2805' : 1, 'prosjekt' : 1, 'to' : 11, 'link' : 11, 'homework' : 11}
@@ -304,7 +304,7 @@ if __name__ == "__main__":
     print()
     index_service_test = IndexService_test()
     index_service_test.run_tests()
-
+    print()
     database_test.print_results()
     parser_test.print_results()
     indexer_test.print_results()
