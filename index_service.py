@@ -145,7 +145,6 @@ class IndexService(Resource):
             values = self.indexer.make_index(url)
             self.index_database.upsert('wordfreq', article_id, values)
 
-
     # Handles POST requests from the other microservices.
     def render_POST(self, request):
         d = json.load(request.content)
