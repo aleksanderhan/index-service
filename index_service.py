@@ -30,16 +30,17 @@ class IndexService(Resource):
         self.is_daemon = config.run_as_daemon
         self.index_database = DatabaseAPI(config.db_host, config.db_port,
                                  config.db_name, config.db_user, config.db_pass)
-        self.indexer = Indexer(config.stopword_file_path)
+        self.indexer = Indexer(config.stopword_file_path, config.tags_to_ignore)
 
         if self.is_daemon:
             self.run_as_daemon(config.server_port)
 
-    def run_as_daemon(self, port):
+    def run_as_daemon(self, port, unit_test=False):
         self.index_database.make_tables("wordfreq", {"articleid" : "VARCHAR", "word" : "VARCHAR", "frequency" : "INTEGER"}, "(articleid, word)")
-        host = self.get_service_ip(config.content_module_name)
-        self.index_all_articles(host)
-        print("Starting the indexer as a daemon listening to port %d..." % port)
+        if not unit_test:
+            host = self.get_service_ip(config.content_module_name)
+            self.index_all_articles(host)
+        print("\nStarting the indexer as a daemon listening to port %d..." % port)
         reactor.listenTCP(port, server.Site(self))
         reactor.run()
 
@@ -105,7 +106,7 @@ class IndexService(Resource):
                 print(user_input + ": command not found")
                 continue
 
-    def index_all_articles(self, host):
+    def index_all_articles(self, host, unit_test=False):
         publish_article_list = host + "/list"
         r = requests.get(publish_article_list)
         article_id_list = r.json()['list']
@@ -115,7 +116,10 @@ class IndexService(Resource):
             sys.stdout.write("Indexing article {i} of {total}.".format(i=i+1, total=total))
             sys.stdout.flush()
             article_id = article_id_list[i]['id']
-            self.index_article(article_id)
+            if unit_test:
+                self.index_article(article_id_list[i]['title'], article_id)
+            else:
+                self.index_article(article_id)
         print("\nIndexing completed.")
 
     # Fetches the publish host address from the communication backend.
@@ -129,13 +133,18 @@ class IndexService(Resource):
             print('\nUsing hardcoded value for publish host ip.')
             url = 'http://despina.128.no/publish' # Hardcoded url for testing purposes.
         return url
-        
+
     # Indexes page.
-    def index_article(self, article_id):
-        host = self.get_service_ip(config.content_module_name)
-        url = host + "/article/" + article_id # Articles should be found at: http://<publish_service_host>/article/<article_id> 
-        values = self.indexer.make_index(url)
-        self.index_database.upsert('wordfreq', article_id, values)
+    def index_article(self, article_id, url=None):
+        if url:
+            values = self.indexer.make_index(url)
+            self.index_database.upsert('wordfreq', article_id, values)
+        else:
+            host = self.get_service_ip(config.content_module_name)
+            url = host + "/article/" + article_id # Articles should be found at: http://<publish_service_host>/article/<article_id> 
+            values = self.indexer.make_index(url)
+            self.index_database.upsert('wordfreq', article_id, values)
+
 
     # Handles POST requests from the other microservices.
     def render_POST(self, request):
@@ -159,12 +168,6 @@ class IndexService(Resource):
             for value in data:
                 response[value[0]] = value[1]
             return json.dumps(response)
-        # Updates the index of an article with given id:
-        elif d['task'] == 'updatedArticle': 
-            article_id = d['articleID']
-            self.index.remove(article_id)
-            self.index_article(article_id)
-            return '200 - thanks!'
         # Indexes published article with given id:
         elif d['task'] == 'publishedArticle':
             article_id = d['articleID']
@@ -178,40 +181,26 @@ class IndexService(Resource):
         else:
             return('404')
 
-
-class RequestClient(Protocol):
-    """ 
-    Request Client Protocol.
-    """
-
-    def __init__(self, finished):
-        self.finished = finished
-
-    def dataReceived(self, data):
-        self.data = data
-
-    def connectionLost(self, reason):
-        self.finished.callback(self.data)
-
    
 class Indexer(object):
     """ 
     Basic indexer of HTML pages.
     """
 
-    def __init__(self, stopword_file_path):
+    def __init__(self, stopword_file_path, tags_to_ignore=config.tags_to_ignore):
         self.stopwords = set([''])
+        self.tags_to_ignore = tags_to_ignore
         with codecs.open(stopword_file_path, encoding='utf-8') as f:
             for word in f:
                 self.stopwords.add(unicode(word.strip()))
 
     # Takes an url as arguments and indexes the HTML page at that url. Returns a list of tuple values.
-    def make_index(self, url, tags_to_ignore=config.tags_to_ignore):
+    def make_index(self, url):
         # Retriving the HTML source from the url.
         page = urllib.urlopen(url).read().decode('utf-8')
 
         # Parseing the HTML.
-        parser = Parser(tags_to_ignore)
+        parser = Parser(self.tags_to_ignore)
         parser.feed(page)
         content = parser.get_content()
         parser.close()
