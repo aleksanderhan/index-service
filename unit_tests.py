@@ -276,6 +276,7 @@ class IndexService_test:
         self.test_publish_server_thread.terminate()
         self.test_index_service_thread.terminate()
 
+
     def print_results(self):
         print('IndexService test results:')
         print("Passed", self.passed_tests, "out of", self.passed_tests + self.failed_tests, "tests.")
@@ -304,7 +305,10 @@ if __name__ == "__main__":
     print()
     index_service_test = IndexService_test()
     index_service_test.run_tests()
+    from time import sleep
+    sleep(2)
     print()
+    print("Results from tests:")
     database_test.print_results()
     parser_test.print_results()
     indexer_test.print_results()
@@ -312,6 +316,7 @@ if __name__ == "__main__":
 
     
 '''
+Results from tests:
 DatabaseAPI test results:
 Passed 3 out of 3 tests.
 Parser test results:
